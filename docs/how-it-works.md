@@ -75,7 +75,9 @@ Own means: a key dir whose recorded id `min ls` lists under the dir's name
 (a box renamed outside min-cursor, or another tool's box that took the
 name, is not own). A key dir from before ids is adopted, its id written by
 a command that acts on the box (`open`, `attach`, `ssh`, `_proxy`,
-`destroy`, `gc`), when exactly one box has its name. Every other command
+`destroy`, `gc`), when exactly one box has its name; only that box adopts,
+never the other key dirs a refresh of the stanzas or settings looks at.
+Every other command
 (`ssh-config`, `config`, `setup`, each with any option; `gc --dry-run`,
 `status`, completions and `doctor`) counts it own without writing; `doctor`
 says it will be adopted. A box min lists with no id, or one that is no

@@ -80,7 +80,8 @@ mn() { "$MIN" "$@"; }
 # line first), which every caller takes as "unknown: keep everything".
 min_ls() {
     ml_j=$(mn ls --json </dev/null) || return 1
-    printf '%s' "$ml_j" | jq -e '.sessions | type == "array"' >/dev/null 2>&1 || return 1
+    # -s: one JSON value, the list (a JSON log line before it fails too)
+    printf '%s' "$ml_j" | jq -se 'length == 1 and (.[0].sessions | type == "array")' >/dev/null 2>&1 || return 1
     printf '%s\n' "$ml_j"
 }
 
@@ -109,10 +110,11 @@ stored_id() {
 # for NAME (only an explicit NAME may reach it). 1: no box for NAME. 2:
 # several boxes named NAME, no id recorded. 3: sessions/NAME/id is no
 # session id. 7: the one box named NAME, no id recorded, and min lists it
-# with no id or one that is no session id (it is there: never "none"). A recorded id is never traded for a box found by name: 5, ours
-# is gone (min ls lists the id nowhere; prints how many boxes now have the
-# name); 6, ours was renamed outside this tool (min lists the id under
-# another name, or none: prints it, or "(no name)").
+# with no id or one that is no session id (it is there: never "none"). A
+# recorded id is never traded for a box found by name: 5, ours is gone (min
+# ls lists the id nowhere; prints how many boxes now have the name); 6, ours
+# was renamed outside this tool (min lists the id under another name, or
+# none: prints it, or "(no name)").
 # PICK_NOADOPT=1 (ssh-config, config, setup, gc --dry-run, status,
 # _sessions, doctor: every command but those that act on one box: open,
 # attach, ssh, _proxy, destroy, gc): a key dir from before ids still counts
@@ -200,7 +202,8 @@ own_filter() {
                [ -d "$s" ] || continue
                s=${s%/}; s=${s##*/}
                valid_name "$s" || continue
-               if of_i=$(pick_id "$s" "$of_j"); then printf '%s\n' "$of_i"; fi
+               # never adopts: only the box a command acts on does (box_id)
+               if of_i=$(PICK_NOADOPT=1; pick_id "$s" "$of_j"); then printf '%s\n' "$of_i"; fi
            done)
     printf '%s' "$of_j" | jq --arg k "$of_k" '($k | split("\n")) as $k | .sessions |= map(select(.id as $i | $k | index([$i])))'
 }
@@ -1370,7 +1373,7 @@ cmd_status() {
     PICK_NOADOPT=1
     now=$(date +%s)
     ls_json=$(min_ls) || die "min ls failed"
-    st_own=$(printf '%s' "$ls_json" | own_filter)
+    st_own=$(printf '%s' "$ls_json" | own_filter) || die "min ls failed"
     track_orphans "$st_own" "$now" >/dev/null
     st_ids=$(printf '%s' "$st_own" | jq -r '.sessions[].id')
     st_names=$(printf '%s' "$st_own" | jq -r '.sessions[].name')
@@ -1508,7 +1511,7 @@ EOT
                 [ "$ds" != 0 ] || [ -e "$s/id" ] || ds=8
                 case $ds in
                     7) row warn sessions "min lists box $n with no session id; $TOOL leaves it alone" "min ls --json shows it; remove $s to let go of it" ;;
-                    8) row info sessions "$n will adopt box $di on next use (made before $TOOL recorded box ids)" ;;
+                    8) row info sessions "$n will adopt box $di when a command acts on it (made before $TOOL recorded box ids)" ;;
                     2) row warn sessions "several boxes are named $n; $TOOL cannot tell which is its own, so it leaves them all alone" "give the others new names (min ls --json shows their ids; min session rename ID NEW), or remove $s" ;;
                     3) row warn sessions "$s/id is not a session id; $TOOL leaves $n alone" "write the box's id (min ls --json) into $s/id, or remove $s if the box is gone" ;;
                     5) row info sessions "$n's box is gone" "$TOOL destroy $n forgets it" ;;

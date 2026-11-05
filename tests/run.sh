@@ -2335,7 +2335,7 @@ case_ids_report_only_no_adopt() {
     run gc --dry-run
     assert_rc 0
     run doctor
-    assert_out_contains "alpha will adopt box $ID_A on next use"
+    assert_out_contains "alpha will adopt box $ID_A when a command acts on it"
     assert_no_file "$STATE/sessions/alpha/id"
     # nor do the install commands, with any option (the extension runs setup
     # on startup)
@@ -2435,6 +2435,79 @@ case_ids_own_flag_refuses_foreign() {
     assert_log_contains "min session destroy $ID_A"
 }
 
+# only the box a command acts on adopts: the stanza and settings refreshes
+# on the way (own_filter) never write another legacy key dir's id
+case_ids_only_target_adopts() {
+    installed
+    run config
+    assert_rc 0
+    cat > "$FIXTURES/sessions.json" <<JSON
+{"sessions":[{"id":"$ID_A","name":"alpha","project_path":"$AP","status":"active"},
+ {"id":"$ID_B","name":"beta","project_path":"$T/beta-proj","status":"active"}]}
+JSON
+    rm -f "$STATE/sessions/alpha/id"; own_legacy beta
+    run ssh alpha -- true
+    assert_rc 0
+    assert_file "$STATE/sessions/alpha/id" "$ID_A"
+    assert_no_file "$STATE/sessions/beta/id"
+    rm -f "$STATE/sessions/alpha/id"
+    run attach alpha --no-window
+    assert_rc 0
+    assert_file "$STATE/sessions/alpha/id" "$ID_A"
+    assert_no_file "$STATE/sessions/beta/id"
+    run _proxy alpha
+    assert_rc 0
+    assert_no_file "$STATE/sessions/beta/id"
+}
+
+# status: another tool's box connected by its id is in use
+case_ids_status_foreign_in_use_by_id() {
+    cat > "$FIXTURES/sessions.json" <<JSON
+{"sessions":[{"id":"$ID_A","name":"alpha","project_path":"$AP","status":"active"},
+ {"id":"$ID_F","name":"foreign","project_path":"/f","status":"active"}]}
+JSON
+    own alpha
+    exec_line 101 1 "$ID_F"
+    run status --json
+    assert_rc 0
+    [ "$(jq -c 'map([.name, .in_use])' "$T/out")" = '[["alpha",false],["foreign",true]]' ] \
+        || fail "status --json: $(cat "$T/out")"
+}
+
+# min ls fails: the stanzas on disk stay, but not one with a bad id
+case_ids_ls_failure_drops_bad_id_stanza() {
+    installed
+    assert_file_contains "$HOME/$CONF" "Host ${HP}alpha"
+    echo 'not-an-id' > "$STATE/sessions/alpha/id"
+    printf 1 > "$FIXTURES/ls.fail-from"
+    run ssh-config
+    assert_file_not_contains "$HOME/$CONF" "Host ${HP}alpha"
+}
+
+# a JSON log line before the list is no session list either
+case_ids_ls_json_noise_is_failure() {
+    installed
+    printf '{"level":"info","msg":"hello"}\n' > "$FIXTURES/s.json"
+    cat "$FIXTURES/sessions.json" >> "$FIXTURES/s.json"
+    mv "$FIXTURES/s.json" "$FIXTURES/sessions.json"
+    run destroy -y alpha
+    assert_rc 1
+    assert_err_contains "min ls failed"
+    assert_log_not_contains "session destroy"
+    assert_file "$HOME/$CONF" "$(conf_expected alpha)"
+}
+
+# every destroy and attach the extension sends passes --own
+case_extension_passes_own() {
+    calls=$(grep -hE "run\(\['(destroy|attach)'" "$ROOT"/extension/src/*.ts)
+    printf '%s\n' "$calls" | grep -q "'destroy'" || fail "no destroy call found in the extension"
+    printf '%s\n' "$calls" | grep -q "'attach'" || fail "no attach call found in the extension"
+    printf '%s\n' "$calls" | grep -vF "'--own'" | grep . && fail "a call without --own"
+    grep -hE "'(destroy|attach)'" "$ROOT"/extension/src/*.ts | grep -vE "run\(\[" | grep . \
+        && fail "a destroy or attach call not shaped run(['destroy'|'attach', ...]): the check above would miss it"
+    :
+}
+
 CASES="
 gc_no_own_sessions_yet open_activates_and_launches_editor open_reuses_live_session_for_path open_skips_foreign_session_for_path
 open_needs_ssh_config
@@ -2473,6 +2546,7 @@ ids_prepare_keeps_recorded_id ids_ls_failure_keeps_legacy_stanza
 ids_shared_name_reaches_ours ids_open_shared_name_refused ids_legacy_unique_adopted
 ids_legacy_ambiguous_not_own ids_activate_records_id ids_in_use_maps_id ids_corrupt_id_refused
 ids_gone_box_not_taken_over ids_ls_junk_keeps_state ids_listed_without_id_kept ids_own_flag_refuses_foreign
+ids_only_target_adopts ids_status_foreign_in_use_by_id ids_ls_failure_drops_bad_id_stanza ids_ls_json_noise_is_failure extension_passes_own
 "
 
 # Nothing under ~/.ssh unless the case opted in to ssh-config.

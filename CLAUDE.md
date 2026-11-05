@@ -12,7 +12,7 @@ which also work alone from a terminal.
 |---|---|
 | `bin/min-cursor` | tool constants, then the transport/ssh/session plumbing, then the client layer, whose first block holds every editor-specific constant |
 | plumbing | transport, PREP/prepare, `stored_path`, ssh options and stanzas, `ssh-config`, `_proxy`, `ssh`, naming, `activate_session`, `destroy_one`, `in_use_names`/`box_in_use`, `track_orphans`, `default_loadouts`, the ssh-config record, report helpers; editor-neutral, reaching the client layer only through its hooks |
-| client layer | `open`/`new`/`attach` (session, stanza, settings, `cursor --remote` unless `--no-window`; `new --empty`; hidden `--own`), `destroy` (`--if-idle`; hidden `--own`), `gc`, `status` (`--json`), `doctor`, `completions`, `config`, `setup`, hidden `_sessions`; hooks `client_on_connect` and `client_on_destroy` (settings sync) |
+| client layer | `open`/`new`/`attach` (session, stanza, settings, `cursor --remote` unless `--no-window`; `new --empty`; `attach`'s hidden `--own`), `destroy` (`--if-idle`; hidden `--own`), `gc`, `status` (`--json`), `doctor`, `completions`, `config`, `setup`, hidden `_sessions`; hooks `client_on_connect` and `client_on_destroy` (settings sync) |
 | `bin/min-cursor-config` | python3: marked-block merge of per-host `remote.SSH.remotePlatform` (the only key; Cursor has no `useLocalServer`) into Cursor's user settings.json; `--install`, `--sync NAME...`, `--remove`, `--doctor`, `--dry-run` |
 | `loadouts/cursor.toml`, `loadouts/cursor/` | `openssh curl rsync xxhash git`; sshd env prep; `min:workbench` and `min:motd` rc lines; a patch copying `cursor/skills/minimal-sandbox` to `~/.cursor/skills` in the box. `setup` copies `cursor/` beside the linked toml: `$LOADOUT_ROOT` must be a real directory |
 | `skills/`, `loadouts/cursor/skills/` | Minimal's skills, vendored from gominimal/minimal-skills (MIT) at a pinned commit by `just skills`: the host ones (`setup` copies them into the Mac's `~/.cursor/skills`, marked `.min-cursor-copy`, never over a dir with no `.min-*-copy` mark; one another min tool marked is shared, keeping its mark, and `--remove` deletes it only once no other mark is left) and `minimal-sandbox` (box only: the host ones teach commands a box lacks) |
@@ -73,13 +73,16 @@ which also work alone from a terminal.
   the facts), checked against `ID_ERE` on every read (`stored_id`) before it
   reaches a command line or a stanza. `pick_id`/`box_id` resolve NAME: own
   (the recorded id, listed under NAME); a key dir with no `id` adopts the
-  one box named NAME (and writes it, except under `PICK_NOADOPT=1`, which
+  one box named NAME, only when a command acts on that box (`box_id`;
+  `own_filter`, which every list and the stanza and settings refreshes go
+  through, never writes; nor does anything under `PICK_NOADOPT=1`, which
   every command but `open`, `attach`, `ssh`, `_proxy`, `destroy` and `gc`
   sets: `ssh-config`, `config`, `setup` (the extension runs it on startup),
-  `gc --dry-run`, `status`, `_sessions` and `doctor`, and count it own without writing); several boxes
-  named NAME, none recorded, or a bad `id` file: no id (`box_id` status 2,
-  `BWHY`; also a listed box with a null or non-UUID id, `pick_id` 7, which
-  is never "none", so `destroy` keeps our keys), so an explicit NAME dies saying why, `doctor` warns, it is not
+  `gc --dry-run`, `status`, `_sessions` and `doctor`; they count it own
+  without writing); several boxes named NAME, none recorded, or a bad `id`
+  file: no id (`box_id` status 2, `BWHY`; also a listed box with a null or
+  non-UUID id, `pick_id` 7, which is never "none", so `destroy` keeps our
+  keys), so an explicit NAME dies saying why, `doctor` warns, it is not
   own and gets no stanza or settings entry; never a by-name call. A
   recorded id is never traded for a box found by name: ours gone (id
   unlisted; `pick_id` 5) with another box named NAME is `box_id` status 5,
@@ -88,8 +91,8 @@ which also work alone from a terminal.
   refused everywhere. A NAME chosen from the own list (the cwd, the picker)
   resolves with `own`, and so does one the extension sends: its `destroy`
   and `attach` calls pass the hidden `--own`, so a stale view row never
-  reaches another tool's box ("NAME is not a box of min-cursor's"). A failed `min ls` keeps every stanza but a bad-id
-  one. An explicit NAME that is not own and has no recorded id reaches the
+  reaches another tool's box ("NAME is not a box of min-cursor's"). A
+  failed `min ls` keeps every stanza but a bad-id one. An explicit NAME that is not own and has no recorded id reaches the
   one box of that name (`attach`, `ssh`, `open -n`, `destroy`), refused
   when several share it; `_proxy NAME` only an own box, or the one box of
   that name when there is no key dir at all (a stanza of a box of ours that
