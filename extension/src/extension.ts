@@ -22,6 +22,7 @@ interface Box {
   status: string;
   project: string;
   own: boolean;
+  recorded: boolean; // its id is recorded: Destroy and Clean up reach only these
   empty: boolean; // made by new --empty
   in_use: boolean;
   idle: number | null;
@@ -118,7 +119,8 @@ class Item extends vscode.TreeItem {
       : sb.in_use ? 'in use'
       : sb.idle !== null ? `idle ${age(sb.idle)}` : 'idle';
     this.description = state;
-    this.tooltip = `${sb.name}\n${sb.empty ? 'empty box' : sb.project}\n${state}`;
+    this.tooltip = `${sb.name}\n${sb.empty ? 'empty box' : sb.project}\n${state}` +
+      (sb.recorded ? '' : '\nNo box id recorded yet: open it once to record it.');
     this.iconPath = new vscode.ThemeIcon(sb.status !== 'active' ? 'vm-outline' : sb.in_use ? 'vm-active' : 'vm');
     this.command = { command: 'minimal.open', title: 'Open', arguments: [this] };
   }
@@ -244,8 +246,12 @@ async function destroy(item: Item | undefined, view: Boxes): Promise<void> {
 // gc from the UI: one question per idle box, oldest first; the CLI
 // re-checks idleness right before each destroy (--if-idle).
 async function cleanUp(view: Boxes): Promise<void> {
-  const idle = (await listBoxes())
-    .filter((s) => s.status === 'active' && !s.in_use)
+  const boxes = await listBoxes();
+  for (const s of boxes.filter((b) => !b.recorded)) {
+    out.appendLine(`clean up skips ${s.name}: no box id recorded yet (open it once)`);
+  }
+  const idle = boxes
+    .filter((s) => s.recorded && s.status === 'active' && !s.in_use)
     .sort((a, b) => (b.idle ?? 0) - (a.idle ?? 0));
   if (idle.length === 0) { vscode.window.showInformationMessage('No idle Minimal boxes.'); return; }
   for (const sb of idle) {

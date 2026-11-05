@@ -10,7 +10,7 @@ box, where `min-cursor` is not installed.
 | `min-cursor attach [NAME] [--no-window]` | an existing session in Cursor (no NAME: pick one of its own) |
 | `min-cursor destroy [-y] [--if-idle] [--force] [NAME]` | ask `[y/N]`, then destroy (no NAME: its one session for the current directory); `--if-idle` refuses with exit 3 while something is connected. Without a terminal, min refuses a session with unsaved changes: exit 4; `-y --force` discards them. When the `min ls` that follows fails, the session's keys and stanza stay, with a warning, and after a y the exit is non-zero (min's own status, or 1 when min destroyed it); once `min ls` lists its id no more (a key dir with no id: once no box is named NAME), `destroy NAME` removes what was kept |
 | `min-cursor gc [--older-than SECONDS] [--dry-run]` | list active sessions no ssh client is using (oldest first), then ask `[y/N/q]` for each |
-| `min-cursor status [--json]` | table: session, status, project, in use, idle age; `--json`: `[{name, id, status, project, own, empty, in_use, idle}]` (`id`: min's session id; `own`: min-cursor's box, by that id; idle in seconds or null, own boxes only) |
+| `min-cursor status [--json]` | table: session, status, project, in use, idle age; `--json`: `[{name, id, status, project, own, recorded, empty, in_use, idle}]` (`id`: min's session id; `own`: min-cursor's box, by that id; `recorded`: that id is in `STATE/sessions/NAME/id`, not only adoptable; idle in seconds or null, own boxes only) |
 | `min-cursor doctor` | health report; exits 1 on any FAIL |
 | `min-cursor setup [--remove]` | the whole install from this copy: links `~/.local/bin/min-cursor` and the `cursor` loadout here, then `ssh-config` and `config`; `--remove` undoes only ours |
 | `min-cursor config [--remove\|--print]` | opt in to (or out of) the settings block; `--print` only prints |
@@ -27,7 +27,8 @@ command refuses ("NAME is not a box of min-cursor's"). `destroy --own` also
 refuses a key dir with no recorded id ("NAME has no recorded box id yet"), so
 the view's Destroy and Clean up only reach a box by the id min-cursor
 recorded. `gc` likewise lists such a key dir as "no id recorded (attach NAME
-once)" and never asks about it.
+once)" and never asks about it, and `destroy` with no NAME (the current
+folder's box) refuses it the way `--own` does.
 
 Names: without `-n`, min names a new session (`<dir>-<hex>`, e.g.
 `myproject-3f9c`), and min-cursor takes the one new session for the path.
@@ -44,7 +45,8 @@ become hostnames and ssh `Host` patterns; one that does not is refused.
 under `STATE/sessions/NAME`, and the box's id in `STATE/sessions/NAME/id`);
 boxes other tools or `min` alone made are not its to tidy. `open`, `destroy`
 without NAME, the `attach` picker and completions pass them over too; only
-an explicit NAME (`attach NAME`, `destroy NAME`, `open -n NAME`) reaches one.
+an explicit NAME (`attach NAME`, `ssh NAME`, `destroy NAME`, `open -n NAME`)
+reaches one.
 
 Box ids: since min 0.8 several boxes may share a name (a stopped box keeps
 its name and is still listed, but a new box may take the name; only a

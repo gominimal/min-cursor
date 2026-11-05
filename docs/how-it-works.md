@@ -82,8 +82,11 @@ command (`ssh-config`, `config`, `setup`, each with any option; `gc`,
 `status`, completions and `doctor`) counts it own without writing; `doctor`
 says it will be adopted. `gc` lists such a key dir as "no id recorded
 (attach NAME once)" and never asks about it, and `destroy --own` (the
-extension's Destroy and Clean up) refuses it: neither ever destroys a box
-found only by its name. A box min lists with no id, or one that is no
+extension's Destroy and Clean up) and `destroy` with no NAME (the cwd
+lookup) refuse it: none ever destroys a box found only by its name.
+`status --json` marks each row `recorded` (its id is in `sessions/NAME/id`),
+and Clean up offers only those. `open` never adopts while it looks: the id
+is recorded by `prepare`, after the project check. A box min lists with no id, or one that is no
 session id, is never reached and never counts as gone. With several, none is
 own, no stanza or settings entry is written for it, and `doctor` warns. The
 adoption has a risk: a legacy key dir whose own box is long gone adopts the
@@ -137,8 +140,8 @@ Include deletes those, so `~/.ssh/config` ends byte for byte as it was.
 `in_use_names` reads the host process table (`ps -xo pid=,ppid=,args=`)
 for processes whose argv has `session exec X <path ending /sshd>`:
 `_proxy` after its exec, ControlPersist masters, any ssh client. X is an id
-(mapped back to its name through the `sessions/NAME/id` files) or, for
-connections opened before ids or by other tools, a name. Nothing
+or, for connections opened before ids or by other tools, a name; an own box
+is in use when either its name or its id is there. Nothing
 contacts a box to find out.
 
 ## Client layer

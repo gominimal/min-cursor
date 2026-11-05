@@ -92,8 +92,11 @@ which also work alone from a terminal.
   extension sends: its `destroy` and `attach` calls pass the hidden `--own`:
   NAME must still be own ("NAME is not a box of min-cursor's"), and `destroy
   --own` also refuses a key dir with no `id` ("NAME has no recorded box id
-  yet"), so the view's Destroy and Clean up never reach a box found only by
-  its name. `gc` never adopts: a key dir with no `id` is listed ("no id
+  yet"), and so does `destroy` with no NAME (the cwd lookup), so the view's
+  Destroy and Clean up and the cwd lookup never reach a box found only by its
+  name (`status --json` gives `recorded`; Clean up offers only recorded rows).
+  `open` never adopts in its lookup: prepare records the id once the project
+  matches. `gc` never adopts: a key dir with no `id` is listed ("no id
   recorded (attach NAME once)"), never asked about; `gc` destroys only a box
   whose recorded id `min ls` lists. A failed `min ls` keeps every stanza but a
   bad-id one. An explicit NAME that is not own and has no recorded id reaches
@@ -109,14 +112,13 @@ which also work alone from a terminal.
   boxes made by `min` alone are never listed. The same holds wherever a
   session is chosen for the user: `open`'s reuse of a live session for PATH,
   `destroy`'s cwd lookup, the `attach` picker and `_sessions` (completions).
-  Only an explicit NAME (`attach NAME`, `destroy NAME`, `open -n NAME`) may
-  reach another tool's box.
+  Only an explicit NAME (`attach NAME`, `ssh NAME`, `destroy NAME`, `open -n
+  NAME`) may reach another tool's box.
 - In use = some host process runs `min session exec X ... sshd` (any ssh
   client's connection), for an own box by its name or its id (gc rows,
-  `gc_still_idle`, `st_used`, `track_orphans`); X is an id (`in_use_names`
-  also prints the name whose `sessions/NAME/id` holds it) or a bare name
-  (connections from before ids, other tools). Never contact a box without such
-  a live process: a connect starts a stopped box.
+  `gc_still_idle`, `st_used`, `track_orphans`; `in_use_names` maps nothing); X
+  is an id or a bare name (connections from before ids, other tools). Never
+  contact a box without such a live process: a connect starts a stopped box.
 - `gc` re-checks `gc_still_idle` before each question.
 - `config`/doctor never prune on a failed `min ls`. `--remove` restores the
   bytes it found (brace framing, CRLF, BOM); a user's own remotePlatform

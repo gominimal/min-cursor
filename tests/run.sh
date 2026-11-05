@@ -938,7 +938,7 @@ case_status_json() {
     assert_rc 0
     j=$(cat "$T/out")
     [ "$(printf '%s' "$j" | jq -r 'map(.name) | join(" ")')" = "alpha beta gamma stopped box-amber" ] || fail "names: $j"
-    [ "$(printf '%s' "$j" | jq -c '.[0]')" = "{\"name\":\"alpha\",\"id\":\"$ID_A\",\"status\":\"active\",\"project\":\"$AP\",\"own\":true,\"empty\":false,\"in_use\":true,\"idle\":null}" ] \
+    [ "$(printf '%s' "$j" | jq -c '.[0]')" = "{\"name\":\"alpha\",\"id\":\"$ID_A\",\"status\":\"active\",\"project\":\"$AP\",\"own\":true,\"recorded\":true,\"empty\":false,\"in_use\":true,\"idle\":null}" ] \
         || fail "alpha: $(printf '%s' "$j" | jq -c '.[0]')"
     b=$(printf '%s' "$j" | jq '.[1].idle')
     [ "$b" -ge 7200 ] && [ "$b" -lt 7260 ] || fail "beta idle: $b"
@@ -2596,6 +2596,80 @@ n
     assert_file "$STATE/sessions/alpha/id" "$ID_A"
 }
 
+# destroy with no NAME (cwd lookup) never adopts and destroys in one step
+case_ids_cwd_destroy_refuses_legacy() {
+    printf '{"sessions":[{"id":"%s","name":"alpha","project_path":"%s","status":"active"}]}\n' "$THEIRS" "$AP" \
+        > "$FIXTURES/sessions.json"
+    own_legacy alpha
+    reset_log
+    [ "$(cd "$AP" && sh "$BIN" destroy -y </dev/null >/dev/null 2>"$T/err"; echo $?)" = 1 ] || fail "cwd destroy did not exit 1"
+    assert_err_contains "alpha has no recorded box id yet"
+    assert_log_not_contains "session destroy"
+    assert_no_file "$STATE/sessions/alpha/id"
+}
+
+# status --json: recorded is true only when sessions/NAME/id holds the id
+case_ids_status_recorded() {
+    cat > "$FIXTURES/sessions.json" <<JSON
+{"sessions":[{"id":"$ID_A","name":"alpha","project_path":"$AP","status":"active"},
+ {"id":"$ID_B","name":"beta","project_path":"$T/beta-proj","status":"active"},
+ {"id":"$ID_F","name":"foreign","project_path":"/f","status":"active"}]}
+JSON
+    own alpha; own_legacy beta
+    run status --json
+    assert_rc 0
+    [ "$(jq -c 'map([.name, .own, .recorded])' "$T/out")" = '[["alpha",true,true],["beta",true,false],["foreign",false,false]]' ] \
+        || fail "status --json: $(cat "$T/out")"
+}
+
+# track_orphans: a box in use by its id restarts its age
+case_ids_orphan_age_restarts_by_id() {
+    own alpha
+    age alpha 7200
+    exec_line 101 1 "$ID_A"
+    run status
+    assert_rc 0
+    a=$(cat "$STATE/orphan/alpha")
+    [ $(($(date +%s) - a)) -lt 60 ] || fail "orphan/alpha not restarted: $a"
+}
+
+# st_used: a bare-name connection belongs to the own box of that name, not to
+# another tool's box sharing it
+case_ids_status_bare_name_is_own() {
+    cat > "$FIXTURES/sessions.json" <<JSON
+{"sessions":[{"id":"$ID_A","name":"alpha","project_path":"$AP","status":"active"},
+ {"id":"$THEIRS","name":"alpha","project_path":"/t","status":"active"}]}
+JSON
+    own alpha
+    exec_line 101 1 alpha
+    run status --json
+    assert_rc 0
+    [ "$(jq -c 'map([.id, .in_use])' "$T/out")" = "[[\"$ID_A\",true],[\"$THEIRS\",false]]" ] \
+        || fail "status --json: $(cat "$T/out")"
+}
+
+# interactive destroy (a terminal): min destroys by id
+case_ids_destroy_on_tty_by_id() {
+    own alpha
+    reset_log
+    run_tty 'y
+' destroy alpha
+    assert_rc 0
+    assert_log_contains "min session destroy $ID_A"
+    assert_log_not_contains "min session destroy alpha"
+}
+
+# open: a legacy key dir for another folder is refused before any adoption
+case_ids_open_project_checked_before_adopt() {
+    mkdir -p "$HOME/.ssh" && : > "$HOME/$CONF"
+    own_legacy alpha
+    run open "$P" -n alpha --no-window
+    assert_rc 1
+    assert_err_contains "session alpha is for $AP, not $P"
+    assert_no_file "$STATE/sessions/alpha/id"
+    assert_log_not_contains "session exec"
+}
+
 CASES="
 gc_no_own_sessions_yet open_activates_and_launches_editor open_reuses_live_session_for_path open_skips_foreign_session_for_path
 open_needs_ssh_config
@@ -2636,6 +2710,7 @@ ids_legacy_ambiguous_not_own ids_activate_records_id ids_in_use_maps_id ids_corr
 ids_gone_box_not_taken_over ids_ls_junk_keeps_state ids_listed_without_id_kept ids_own_flag_refuses_foreign
 ids_only_target_adopts ids_status_foreign_in_use_by_id ids_ls_failure_drops_bad_id_stanza ids_ls_json_noise_is_failure extension_passes_own
 ids_legacy_never_destroyed_by_own_or_gc ids_ls_non_object_is_failure ids_legacy_in_use_by_id ids_bystander_never_adopted
+ids_cwd_destroy_refuses_legacy ids_status_recorded ids_orphan_age_restarts_by_id ids_status_bare_name_is_own ids_destroy_on_tty_by_id ids_open_project_checked_before_adopt
 "
 
 # Nothing under ~/.ssh unless the case opted in to ssh-config.

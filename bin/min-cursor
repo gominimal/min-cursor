@@ -117,11 +117,13 @@ stored_id() {
 # was renamed outside this tool (min lists the id under another name, or
 # none: prints it, or "(no name)"). 8: min ls could not be read (jq
 # failed): unknown, never "none". 1 too for NAME that is no session name.
-# PICK_NOADOPT=1 (ssh-config, config, setup, gc, status, _sessions, doctor:
-# every command but those that act on one box: open, attach, ssh, _proxy,
-# destroy), and always within own_filter: a key dir from before ids still
-# counts as own, but its id is not written; the next command that acts on
-# that box writes it.
+# PICK_NOADOPT=1 (set by ssh-config, config, setup, status, _sessions and
+# doctor; gc and open's lookup set it too): a key dir from before ids still
+# counts as own, but its id is not written. own_filter always runs pick_id
+# under it, which is what keeps every list (gc's, the pickers, the cwd
+# lookup, open's reuse, the stanza and settings refreshes) from adopting;
+# only box_id on the one NAME a command acts on (attach, ssh, _proxy,
+# destroy) writes it, and prepare once a box is connected.
 PICK_NOADOPT=
 pick_id() {
     valid_name "$1" || return 1   # never reaches sess_dir or put
@@ -848,9 +850,9 @@ drop_gone() {
 
 # Sessions whose box serves an ssh connection right now, one per line: any
 # host process `min session exec X .../sshd` (_proxy, `ssh`, scp, any
-# client's own ssh, whatever its Host prefix). X is a box's id (ours: also
-# the name whose sessions/NAME/id holds it) or, from connections opened
-# before ids or by other tools, a name. Read from ps, so a stopped box is
+# client's own ssh, whatever its Host prefix). X is a box's id or, from
+# connections opened before ids or by other tools, a name: callers ask by
+# both (box_in_use NAME || box_in_use ID). Read from ps, so a stopped box is
 # never started to ask.
 in_use_names() {
     ps -xo pid=,ppid=,args= 2>/dev/null | awk '
@@ -858,14 +860,7 @@ in_use_names() {
           for (i = 1; i + 3 <= k; i++) {
               if (w[i] != "session" || w[i + 1] != "exec" || w[i + 2] !~ /^[a-z0-9][a-z0-9-]*$/) continue
               m = split(w[i + 3], q, "/"); if (q[m] == "sshd") { print w[i + 2]; break }
-          } }' | sort -u | while IFS= read -r iu; do
-            printf '%s\n' "$iu"
-            fact_ok "$ID_ERE" "$iu" || continue
-            grep -lxF -- "$iu" "$STATE"/sessions/*/id 2>/dev/null | while IFS= read -r iu_f; do
-                iu_f=${iu_f%/id}; iu_f=${iu_f##*/}
-                if valid_name "$iu_f" && [ "$(stored_id "$iu_f" || :)" = "$iu" ]; then printf '%s\n' "$iu_f"; fi
-            done
-        done
+          } }' | sort -u
 }
 # gc_still_idle NAME [ID]: right before a gc asks about NAME, look again (the
 # user may have connected while earlier questions were open): not in use
@@ -887,19 +882,24 @@ box_in_use() {
 # track_orphans LS_JSON NOW: orphan/NAME = epoch an active session was first
 # seen neither held by this client (client_linked) nor in use (box_in_use);
 # a session in use restarts its age, so it counts from the last use. Removed
-# once linked or no longer active. kept/NAME goes with the session. Prints the orphans not in use now, one per line.
+# once linked or no longer active. kept/NAME goes with the session. In use
+# is by name or id. Prints the orphans not in use now, one per line.
 track_orphans() {
     mkdir -p "$STATE/orphan" "$STATE/kept"
     INUSE_DONE=
     orphans=
-    for n in $(printf '%s' "$1" | jq -r '.sessions[] | select(.status == "active") | .name'); do
-        hook client_linked "$n" || orphans="$orphans$n
+    # NAME/ID words: own names are hostnames, ids hex and dashes
+    for ni in $(printf '%s' "$1" | jq -r '.sessions[] | select(.status == "active") | "\(.name)/\(.id // "")"'); do
+        n=${ni%%/*}
+        hook client_linked "$n" || orphans="$orphans$ni
 "
     done
     all=$(printf '%s' "$1" | jq -r '.sessions[].name')
-    for n in $orphans; do
-        # in use by its name or its id (a legacy dir's box reached by id)
-        oi=$(printf '%s' "$1" | jq -r --arg n "$n" '[.sessions[] | select(.name == $n) | .id // empty][0] // empty')
+    names=
+    for ni in $orphans; do
+        n=${ni%%/*} oi=${ni#*/}
+        names="$names$n
+"
         if box_in_use "$n" || { [ -n "$oi" ] && box_in_use "$oi"; }; then printf '%s' "$2" > "$STATE/orphan/$n"; continue; fi
         [ -f "$STATE/orphan/$n" ] || printf '%s' "$2" > "$STATE/orphan/$n"
         printf '%s\n' "$n"
@@ -908,7 +908,7 @@ track_orphans() {
         [ -f "$f" ] || continue
         n=${f##*/}
         case $f in
-            "$STATE"/orphan/*) printf '%s\n' "$orphans" | grep -qxF -- "$n" || rm -f "$f" ;;
+            "$STATE"/orphan/*) printf '%s\n' "$names" | grep -qxF -- "$n" || rm -f "$f" ;;
             *) printf '%s\n' "$all" | grep -qxF -- "$n" || rm -f "$f" ;;   # kept/
         esac
     done
@@ -1223,9 +1223,12 @@ cmd_open() {
     fi
     # NAME's box: own, else the one box of that name; several (and none
     # recorded) is refused, never a third made beside them
+    # Never adopts here: prepare records the id once the project matches
     BID=
     if [ -n "$name" ]; then
+        PICK_NOADOPT=1
         ob=0; box_id "$name" "$oj" || ob=$?
+        PICK_NOADOPT=
         [ "$ob" -le 1 ] || die "$BWHY"
     fi
     if [ -n "$BID" ] && [ -n "$gave" ] && [ "$(id_field "$BID" project_path "$oj")" != "$path" ]; then
@@ -1282,7 +1285,9 @@ cmd_destroy() {
         esac
     done
     # a name not given is chosen among own boxes, and stays own
-    [ -n "$name" ] || do_=own
+    # a name not given is chosen for the user: as --own, never a key dir
+    # with no recorded id (adopted and destroyed in one step)
+    [ -n "$name" ] || do_=own oflag=1
     if [ -z "$name" ]; then
         here=$(pwd -P)
         name=$(own_ls | jq -r --arg p "$here" '.sessions[] | select(.project_path == $p) | .name')
@@ -1405,9 +1410,11 @@ cmd_status() {
                   u=false; st_used "$n" "$i" "$o" && u=true
                   a=null; [ "$o" = true ] && [ "$u" = false ] && [ -f "$STATE/orphan/$n" ] && a=$((now - $(cat "$STATE/orphan/$n")))
                   [ "$i" != - ] || i=
+                  # recorded: sessions/NAME/id holds this row's id (not adopted only)
+                  r=false; [ -n "$i" ] && [ "$(stored_id "$n" || :)" = "$i" ] && r=true
                   jq -nc --arg n "$n" --arg i "$i" --arg s "$s" --arg p "$p" --argjson u "$u" --argjson a "$a" \
-                      --argjson o "$o" --arg sb "$STATE/box" \
-                      '{name: $n, id: $i, status: $s, project: $p, own: $o, empty: ($p == $sb), in_use: $u, idle: $a}'
+                      --argjson o "$o" --argjson r "$r" --arg sb "$STATE/box" \
+                      '{name: $n, id: $i, status: $s, project: $p, own: $o, recorded: $r, empty: ($p == $sb), in_use: $u, idle: $a}'
               done | jq -s .
         return
     fi
@@ -1528,10 +1535,10 @@ EOT
                 s=${s%/}; n=${s##*/}
                 valid_name "$n" || continue
                 ds=0; di=$(pick_id "$n" "$dj") || ds=$?
-                [ "$ds" != 0 ] || [ -e "$s/id" ] || ds=8
+                [ "$ds" != 0 ] || [ -e "$s/id" ] || ds=adopt   # no pick_id status
                 case $ds in
                     7) row warn sessions "min lists box $n with no session id; $TOOL leaves it alone" "min ls --json shows it; remove $s to let go of it" ;;
-                    8) row info sessions "$n will adopt box $di when a command acts on it (made before $TOOL recorded box ids)" ;;
+                    adopt) row info sessions "$n will adopt box $di when a command acts on it (made before $TOOL recorded box ids)" ;;
                     2) row warn sessions "several boxes are named $n; $TOOL cannot tell which is its own, so it leaves them all alone" "give the others new names (min ls --json shows their ids; min session rename ID NEW), or remove $s" ;;
                     3) row warn sessions "$s/id is not a session id; $TOOL leaves $n alone" "write the box's id (min ls --json) into $s/id, or remove $s if the box is gone" ;;
                     5) row info sessions "$n's box is gone" "$TOOL destroy $n forgets it" ;;
