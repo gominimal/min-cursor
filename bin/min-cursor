@@ -75,7 +75,14 @@ shq() {
 pct() { printf '%s' "$1" | sed 's/%/%%/g'; }
 
 mn() { "$MIN" "$@"; }
-min_ls() { mn ls --json </dev/null; }
+# min_ls: min ls --json, printed only when it is a session list; status 1
+# otherwise (min failed, or exited 0 with something else, e.g. a notice
+# line first), which every caller takes as "unknown: keep everything".
+min_ls() {
+    ml_j=$(mn ls --json </dev/null) || return 1
+    printf '%s' "$ml_j" | jq -e '.sessions | type == "array"' >/dev/null 2>&1 || return 1
+    printf '%s\n' "$ml_j"
+}
 
 # ---- box ids ---------------------------------------------------------------
 # Since min 0.8 (gominimal/minimal#2756) a session name is an alias several
@@ -101,12 +108,14 @@ stored_id() {
 # then recorded. 4: not own, the one box named NAME, and no id recorded
 # for NAME (only an explicit NAME may reach it). 1: no box for NAME. 2:
 # several boxes named NAME, no id recorded. 3: sessions/NAME/id is no
-# session id. A recorded id is never traded for a box found by name: 5, ours
+# session id. 7: the one box named NAME, no id recorded, and min lists it
+# with no id or one that is no session id (it is there: never "none"). A recorded id is never traded for a box found by name: 5, ours
 # is gone (min ls lists the id nowhere; prints how many boxes now have the
 # name); 6, ours was renamed outside this tool (min lists the id under
 # another name, or none: prints it, or "(no name)").
-# PICK_NOADOPT=1 (ssh-config --print, config --print, status, _sessions,
-# doctor: commands that only report): a key dir from before ids still counts
+# PICK_NOADOPT=1 (ssh-config, config, setup, gc --dry-run, status,
+# _sessions, doctor: every command but those that act on one box: open,
+# attach, ssh, _proxy, destroy, gc): a key dir from before ids still counts
 # as own, but its id is not written; the next command that acts on it writes
 # it.
 PICK_NOADOPT=
@@ -129,7 +138,7 @@ pick_id() {
         several) return 2 ;;
         *) return 1 ;;
     esac
-    fact_ok "$ID_ERE" "$pi_i" || return 1   # min gave it no id to reach it by
+    fact_ok "$ID_ERE" "$pi_i" || return 7   # min gave it no id to reach it by
     printf '%s' "$pi_i"
     [ "$pi_s" = 1 ] && [ -d "$(sess_dir "$1")" ] || return 4
     [ "$PICK_NOADOPT" = 1 ] || put "$(sess_dir "$1")/id" "$pi_i" || :   # a key dir from before ids: adopted
@@ -138,14 +147,17 @@ pick_id() {
 # pick_id's): 0 found (with own, only an own box counts); 1 none (BID
 # empty; ours, if any, is gone and no box has the name); 2 no id to trust
 # (several boxes named NAME, a bad id file, ours renamed outside this
-# tool): BWHY says why, never let min pick one by name; 5 ours is gone and
+# tool, a box min lists with no usable id, or with own a box that is not
+# ours): BWHY says why, never let min pick one by name; 5 ours is gone and
 # another box has the name now (BWHY): never that one.
 box_id() {
     bi_s=0; BID=$(pick_id "$1" "$2") || bi_s=$?
     BWHY=
     case $bi_s in
         0) return 0 ;;
-        4) [ "${3:-}" = own ] || return 0 ;;
+        4) [ "${3:-}" = own ] || return 0
+           BWHY="$1 is not a box of $TOOL's" ;;
+        7) BWHY="min lists box $1 with no session id to reach it by, so $TOOL leaves it alone" ;;
         2) if [ -d "$(sess_dir "$1")" ]; then
                BWHY="several boxes are named $1, and $TOOL cannot tell which is its own: give the others new names (min ls --json shows their ids; min session rename ID NEW), or remove $(sess_dir "$1") to let go of it"
            else
@@ -179,9 +191,11 @@ need_box() {
 # the dir's name (pick_id: a box renamed outside this tool, or another tool's
 # box of the same name, is not own). gc, orphan reminders, open's reuse,
 # destroy's cwd lookup, the attach picker and completions use only these:
-# other tools' boxes are theirs. own_ls: the same from min ls.
+# other tools' boxes are theirs. Status 1 when stdin is no session list (or
+# jq fails): never an empty list in its place. own_ls: the same from min ls.
 own_filter() {
     of_j=$(cat)
+    printf '%s' "$of_j" | jq -e '.sessions | type == "array"' >/dev/null 2>&1 || return 1
     of_k=$(for s in "$STATE"/sessions/*/; do
                [ -d "$s" ] || continue
                s=${s%/}; s=${s##*/}
@@ -442,8 +456,9 @@ ssh_stanzas() {
     printf '# managed by %s ssh-config; do not edit\n' "$TOOL"
     # One min ls; when it fails the stanzas on disk are kept.
     live=; filter=
-    if [ -n "$MIN" ] && ls_json=$(min_ls 2>/dev/null); then
-        live=$(printf '%s\n' "$ls_json" | own_filter | jq -r '.sessions[].name'); filter=1
+    if [ -n "$MIN" ] && ls_json=$(min_ls 2>/dev/null) && ls_own=$(printf '%s\n' "$ls_json" | own_filter) \
+            && live=$(printf '%s\n' "$ls_own" | jq -r '.sessions[].name'); then
+        filter=1
     fi
     for s in "$STATE"/sessions/*/; do
         [ -f "${s}user" ] || continue
@@ -526,7 +541,7 @@ ssh_other_includes() {
 cmd_ssh_config() {
     case ${1:-} in
         '') ;;
-        --print) PICK_NOADOPT=1; ssh_stanzas; return 0 ;;   # writes nothing: no adoption either
+        --print) ssh_stanzas; return 0 ;;
         --remove) ssh_config_remove; return 0 ;;
         *) die "ssh-config: unknown option $1" ;;
     esac
@@ -780,7 +795,8 @@ ask_destroy() {
 # when a min ls that succeeds no longer lists ID. A failed min ls is
 # unknown: everything stays (ssh-config is not rewritten), with a warning,
 # and after a y the status is non-zero (min's own, or 1 when it was 0); a
-# later `destroy NAME` drops what was kept once min ls lists NAME no more.
+# later `destroy NAME` drops what was kept once min ls lists its id no more
+# (a key dir with no id: once no box is named NAME).
 destroy_one() {
     r=0
     fact_ok "$ID_ERE" "$2" || { log "no session id for $1; not destroying it"; return 1; }
@@ -970,7 +986,8 @@ client_on_destroy() { rm -f "$STATE/created/$1"; settings_sync; }
 # per line; exit 1 when min ls fails, so no caller prunes on a partial list.
 prepared_live() {
     ls_json=$(min_ls 2>/dev/null) || return 1
-    live=$(printf '%s\n' "$ls_json" | own_filter | jq -r '.sessions[].name') || return 1
+    pl_own=$(printf '%s\n' "$ls_json" | own_filter) || return 1
+    live=$(printf '%s\n' "$pl_own" | jq -r '.sessions[].name') || return 1
     for s in "$STATE"/sessions/*/; do
         [ -f "${s}user" ] || continue
         n=$(basename "$s")
@@ -1018,7 +1035,7 @@ cmd_config() {
     case ${1:-} in
         '') set -- --install ;;
         --remove) set -- --remove ;;
-        --print) set -- --install --dry-run; PICK_NOADOPT=1 ;;   # writes nothing: no adoption either
+        --print) set -- --install --dry-run ;;
         *) die "config: unknown option $1" ;;
     esac
     if names=$(prepared_live 2>/dev/null); then
@@ -1212,17 +1229,21 @@ cmd_open() {
     printf '%s%s\n' "$HOST_PREFIX" "$name"
 }
 
+# attach [NAME] [--no-window] [--own]. --own (the extension's, hidden):
+# NAME must still be an own box, as a picked one (a stale view row never
+# reaches another tool's box).
 cmd_attach() {
-    name='' nowin=''
+    name='' nowin='' ao=''
     while [ $# -gt 0 ]; do
         case $1 in
             --no-window) nowin=1; shift ;;
+            --own) ao=own; shift ;;
             -*) die "attach: unknown option $1" ;;
             *) name=$1; shift ;;
         esac
     done
     # a picked name came from the own list: it stays own
-    ao=; [ -n "$name" ] || { name=$(pick_session attach); ao=own; }
+    [ -n "$name" ] || { name=$(pick_session attach); ao=own; }
     need_box "$name" "$ao"
     connect "$name" "$BID" "$nowin"
     printf '%s%s\n' "$HOST_PREFIX" "$name"
@@ -1233,11 +1254,13 @@ cmd_attach() {
 # (gc_still_idle) and refuses with exit 3 when something connected
 # meanwhile. Without a terminal, min refuses a session with unsaved changes:
 # exit 4, and the client asks again before -y --force discards them.
+# --own (the extension's, hidden): NAME must still be an own box.
 cmd_destroy() {
-    yes='' ifidle='' force='' name=''
+    yes='' ifidle='' force='' name='' do_=''
     while [ $# -gt 0 ]; do
         case $1 in
             -y|--yes) yes=1; shift ;;
+            --own) do_=own; shift ;;
             --if-idle) ifidle=1; shift ;;
             --force) force=1; shift ;;
             -*) die "destroy: unknown option $1" ;;
@@ -1245,7 +1268,7 @@ cmd_destroy() {
         esac
     done
     # a name not given is chosen among own boxes, and stays own
-    do_=; [ -n "$name" ] || do_=own
+    [ -n "$name" ] || do_=own
     if [ -z "$name" ]; then
         here=$(pwd -P)
         name=$(own_ls | jq -r --arg p "$here" '.sessions[] | select(.project_path == $p) | .name')
@@ -1287,7 +1310,7 @@ cmd_gc() {
     while [ $# -gt 0 ]; do
         case $1 in
             --older-than) [ $# -ge 2 ] || die "gc: --older-than needs SECONDS"; older=$2; shift 2 ;;
-            --dry-run) dry=1; shift ;;
+            --dry-run) dry=1 PICK_NOADOPT=1; shift ;;   # only reports: no adoption
             *) die "gc: unknown argument $1" ;;
         esac
     done
@@ -1482,9 +1505,10 @@ EOT
                 s=${s%/}; n=${s##*/}
                 valid_name "$n" || continue
                 ds=0; di=$(pick_id "$n" "$dj") || ds=$?
-                [ "$ds" != 0 ] || [ -e "$s/id" ] || ds=7
+                [ "$ds" != 0 ] || [ -e "$s/id" ] || ds=8
                 case $ds in
-                    7) row info sessions "$n will adopt box $di on next use (made before $TOOL recorded box ids)" ;;
+                    7) row warn sessions "min lists box $n with no session id; $TOOL leaves it alone" "min ls --json shows it; remove $s to let go of it" ;;
+                    8) row info sessions "$n will adopt box $di on next use (made before $TOOL recorded box ids)" ;;
                     2) row warn sessions "several boxes are named $n; $TOOL cannot tell which is its own, so it leaves them all alone" "give the others new names (min ls --json shows their ids; min session rename ID NEW), or remove $s" ;;
                     3) row warn sessions "$s/id is not a session id; $TOOL leaves $n alone" "write the box's id (min ls --json) into $s/id, or remove $s if the box is gone" ;;
                     5) row info sessions "$n's box is gone" "$TOOL destroy $n forgets it" ;;
@@ -1580,9 +1604,10 @@ case $cmd in
     -h|--help|help) usage; exit 0 ;;
     doctor) cmd_doctor "$@"; exit $? ;;
     completions) cmd_completions "$@"; exit 0 ;;
-    ssh-config) MIN=$(resolve_min 2>/dev/null) || MIN=; cmd_ssh_config "$@"; exit 0 ;;
-    config) MIN=$(resolve_min 2>/dev/null) || MIN=; mkdir -p "$STATE"; cmd_config "$@"; exit $? ;;
-    setup) MIN=$(resolve_min 2>/dev/null) || MIN=; mkdir -p "$STATE"; cmd_setup "$@"; exit $? ;;
+    # none acts on one box, so none adopts a legacy key dir's id (PICK_NOADOPT)
+    ssh-config) PICK_NOADOPT=1; MIN=$(resolve_min 2>/dev/null) || MIN=; cmd_ssh_config "$@"; exit 0 ;;
+    config) PICK_NOADOPT=1; MIN=$(resolve_min 2>/dev/null) || MIN=; mkdir -p "$STATE"; cmd_config "$@"; exit $? ;;
+    setup) PICK_NOADOPT=1; MIN=$(resolve_min 2>/dev/null) || MIN=; mkdir -p "$STATE"; cmd_setup "$@"; exit $? ;;
     _proxy) [ "${1:-}" != --missing ] || cmd_proxy "$@" ;;   # --missing always dies; needs no min
 esac
 MIN=$(resolve_min)

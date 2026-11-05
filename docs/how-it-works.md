@@ -58,7 +58,7 @@ never replaces a recorded id with another one.
 ### Box ids
 
 min 0.8 ([gominimal/minimal#2756](https://github.com/gominimal/minimal/pull/2756))
-made a session name an alias: only a pending, starting or running box
+made a session name an alias: only a pending, materializing or running box
 holds it, a stopped box keeps it, a new box may take it, and min resolves a
 name to the running box, else the latest. Every min command min-cursor runs
 takes a full session id first, so min-cursor addresses its own boxes by id:
@@ -73,10 +73,13 @@ extension and the commands.
 
 Own means: a key dir whose recorded id `min ls` lists under the dir's name
 (a box renamed outside min-cursor, or another tool's box that took the
-name, is not own). A key dir from before ids is adopted, its id written,
-when exactly one box has its name (by a command that acts on the box:
-`ssh-config --print`, `config --print`, `status`, completions and `doctor`
-count it own without writing; `doctor` says it will be adopted); with
+name, is not own). A key dir from before ids is adopted, its id written by
+a command that acts on the box (`open`, `attach`, `ssh`, `_proxy`,
+`destroy`, `gc`), when exactly one box has its name. Every other command
+(`ssh-config`, `config`, `setup`, each with any option; `gc --dry-run`,
+`status`, completions and `doctor`) counts it own without writing; `doctor`
+says it will be adopted. A box min lists with no id, or one that is no
+session id, is never reached and never counts as gone. With
 several, none is own, no stanza or settings entry is written for it, and
 `doctor` warns. The adoption has a risk: a legacy key dir whose own box is
 long gone adopts the one box that now holds the name, whoever made it.

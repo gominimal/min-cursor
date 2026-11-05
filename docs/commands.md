@@ -21,6 +21,11 @@ box, where `min-cursor` is not installed.
 `--no-window` does everything but open the window; the extension opens it
 itself (`vscode-remote://ssh-remote+min-cursor.NAME/workbench`).
 
+`--own` (`attach`, `destroy`; internal, the extension's): NAME must still
+be one of min-cursor's own boxes, as one picked from its list; otherwise the
+command refuses ("NAME is not a box of min-cursor's"), so a stale row in the
+Minimal view never reaches another tool's box of the same name.
+
 Names: without `-n`, min names a new session (`<dir>-<hex>`, e.g.
 `myproject-3f9c`), and min-cursor takes the one new session for the path.
 Every name, min's or a `-n NAME`, must match `^[a-z0-9][a-z0-9-]*$`: names
