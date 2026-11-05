@@ -773,7 +773,7 @@ activate_session() {
     aj=$(min_ls) || die "min ls failed"
     anew=$(printf '%s' "$aj" | jq -r --arg n "$an" --arg p "$ap" --arg b "$before" '($b | split("\n")) as $o
         | .sessions[] | select((.id // "") as $i | $i != "" and ($o | index([$i]) | not))
-        | select(if $n != "" then .name == $n else .project_path == $p end) | "\(.id) \(.name)"')
+        | select(if $n != "" then .name == $n else .project_path == $p end) | "\(.id) \(.name // "")"')
     case $(printf '%s\n' "$anew" | grep -c .) in
         1) ;;
         0) if [ -n "$an" ]; then die "activate made no session $an"; fi

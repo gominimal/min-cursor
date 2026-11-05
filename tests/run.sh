@@ -2692,6 +2692,17 @@ case_ids_destroy_never_adopts() {
     assert_no_file "$STATE/sessions/alpha/id"
 }
 
+
+# a new session min lists with no name is never recorded as "null"
+case_ids_activate_null_name() {
+    mkdir -p "$HOME/.ssh" && : > "$HOME/$CONF"
+    jq --arg p "$P" '.sessions += [{"id":"12121212-0000-4000-8000-000000000012","name":null,"project_path":$p,"status":"active"}]' \
+        "$FIXTURES/sessions.json" > "$FIXTURES/sessions.after.json"
+    run new "$P" --no-window
+    assert_rc 1
+    assert_err_contains "not a hostname"
+    assert_no_file "$STATE/sessions/null"
+}
 CASES="
 gc_no_own_sessions_yet open_activates_and_launches_editor open_reuses_live_session_for_path open_skips_foreign_session_for_path
 open_needs_ssh_config
@@ -2732,7 +2743,7 @@ ids_legacy_ambiguous_not_own ids_activate_records_id ids_in_use_maps_id ids_corr
 ids_gone_box_not_taken_over ids_ls_junk_keeps_state ids_listed_without_id_kept ids_own_flag_refuses_foreign
 ids_only_target_adopts ids_status_foreign_in_use_by_id ids_ls_failure_drops_bad_id_stanza ids_ls_json_noise_is_failure extension_passes_own
 ids_legacy_never_destroyed_by_own_or_gc ids_ls_non_object_is_failure ids_legacy_in_use_by_id ids_bystander_never_adopted
-ids_cwd_destroy_refuses_legacy ids_status_recorded ids_orphan_age_restarts_by_id ids_status_bare_name_is_own ids_destroy_on_tty_by_id ids_open_project_checked_before_adopt ids_destroy_never_adopts
+ids_cwd_destroy_refuses_legacy ids_status_recorded ids_orphan_age_restarts_by_id ids_status_bare_name_is_own ids_destroy_on_tty_by_id ids_open_project_checked_before_adopt ids_destroy_never_adopts ids_activate_null_name
 "
 
 # Nothing under ~/.ssh unless the case opted in to ssh-config.
