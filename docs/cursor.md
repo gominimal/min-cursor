@@ -131,8 +131,8 @@ The file is `~/Library/Application Support/Cursor/User/settings.json`, or
   re-pins before sshd starts.
 - **Claude login fails in a box.** The browser authorizes, then
   `localhost:PORT/callback` fails with `ERR_CONNECTION_REFUSED`. Workaround:
-  trust `claude.com` and all its subdomains in the browser or in Cursor's
-  trusted domains. The cause is not confirmed.
+  trust `claude.com` and all its subdomains. This is a workaround; the cause
+  is not confirmed. Each box needs its own sign-in.
 - **Window opens but the terminal is in `/home`.** The `min:workbench` rc
   line moves interactive shells that start in `$HOME`; sessions without the
   loadout get it on the next connect.
