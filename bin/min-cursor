@@ -122,8 +122,8 @@ stored_id() {
 # counts as own, but its id is not written. own_filter always runs pick_id
 # under it, which is what keeps every list (gc's, the pickers, the cwd
 # lookup, open's reuse, the stanza and settings refreshes) from adopting;
-# only box_id on the one NAME a command acts on (attach, ssh, _proxy,
-# destroy) writes it, and prepare once a box is connected.
+# only box_id on the one NAME a command connects to (attach, ssh, _proxy)
+# writes it, and prepare once a box is connected. destroy never writes it.
 PICK_NOADOPT=
 pick_id() {
     valid_name "$1" || return 1   # never reaches sess_dir or put
@@ -1273,6 +1273,9 @@ cmd_attach() {
 # --own (the extension's, hidden): NAME must still be an own box, with its
 # id recorded (never one adopted and destroyed in one step).
 cmd_destroy() {
+    # never adopts: an id written before an N or an --if-idle refusal would
+    # stay, and gc would then offer a box found only by its name
+    PICK_NOADOPT=1
     yes='' ifidle='' force='' name='' do_='' oflag=''
     while [ $# -gt 0 ]; do
         case $1 in
@@ -1538,7 +1541,7 @@ EOT
                 [ "$ds" != 0 ] || [ -e "$s/id" ] || ds=adopt   # no pick_id status
                 case $ds in
                     7) row warn sessions "min lists box $n with no session id; $TOOL leaves it alone" "min ls --json shows it; remove $s to let go of it" ;;
-                    adopt) row info sessions "$n will adopt box $di when a command acts on it (made before $TOOL recorded box ids)" ;;
+                    adopt) row info sessions "$n will adopt box $di when you connect to it (open, attach, ssh; made before $TOOL recorded box ids)" ;;
                     2) row warn sessions "several boxes are named $n; $TOOL cannot tell which is its own, so it leaves them all alone" "give the others new names (min ls --json shows their ids; min session rename ID NEW), or remove $s" ;;
                     3) row warn sessions "$s/id is not a session id; $TOOL leaves $n alone" "write the box's id (min ls --json) into $s/id, or remove $s if the box is gone" ;;
                     5) row info sessions "$n's box is gone" "$TOOL destroy $n forgets it" ;;
