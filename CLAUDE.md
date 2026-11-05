@@ -67,38 +67,42 @@ which also work alone from a terminal.
   `own_filter` fails on such input: never an empty list in its place.
 - Every min call aimed at one box passes its id, never its name (min 0.8
   resolves a name to whichever box holds it): `session exec` (prepare,
-  `_proxy`'s exec, `proxy_command`) and `session destroy` (`destroy_one`).
-  The id is `STATE/sessions/NAME/id` (`activate_session`: the one id new in
-  `min ls`, named NAME with `-n`, else for PATH; `prepare` writes it with
-  the facts), checked against `ID_ERE` on every read (`stored_id`) before it
+  `_proxy`'s exec, `proxy_command`) and `session destroy` (`destroy_one`). The
+  id is `STATE/sessions/NAME/id` (`activate_session`: the one id new in `min
+  ls`, named NAME with `-n`, else for PATH; `prepare` writes it with the
+  facts), checked against `ID_ERE` on every read (`stored_id`) before it
   reaches a command line or a stanza. `pick_id`/`box_id` resolve NAME: own
-  (the recorded id, listed under NAME); a key dir with no `id` adopts the
-  one box named NAME, only when a command acts on that box (`box_id`;
+  (the recorded id, listed under NAME); a key dir with no `id` adopts the one
+  box named NAME, only when a command acts on that box (`box_id`;
   `own_filter`, which every list and the stanza and settings refreshes go
-  through, never writes; nor does anything under `PICK_NOADOPT=1`, which
-  every command but `open`, `attach`, `ssh`, `_proxy`, `destroy` and `gc`
-  sets: `ssh-config`, `config`, `setup` (the extension runs it on startup),
-  `gc --dry-run`, `status`, `_sessions` and `doctor`; they count it own
-  without writing); several boxes named NAME, none recorded, or a bad `id`
-  file: no id (`box_id` status 2, `BWHY`; also a listed box with a null or
-  non-UUID id, `pick_id` 7, which is never "none", so `destroy` keeps our
-  keys), so an explicit NAME dies saying why, `doctor` warns, it is not
-  own and gets no stanza or settings entry; never a by-name call. A
-  recorded id is never traded for a box found by name: ours gone (id
-  unlisted; `pick_id` 5) with another box named NAME is `box_id` status 5,
-  "your box NAME is gone": `destroy NAME` drops only our keys and records,
-  everything else refuses; ours listed under another name (`pick_id` 6) is
-  refused everywhere. A NAME chosen from the own list (the cwd, the picker)
-  resolves with `own`, and so does one the extension sends: its `destroy`
-  and `attach` calls pass the hidden `--own`, so a stale view row never
-  reaches another tool's box ("NAME is not a box of min-cursor's"). A
-  failed `min ls` keeps every stanza but a bad-id one. An explicit NAME that is not own and has no recorded id reaches the
-  one box of that name (`attach`, `ssh`, `open -n`, `destroy`), refused
-  when several share it; `_proxy NAME` only an own box, or the one box of
-  that name when there is no key dir at all (a stanza of a box of ours that
-  is gone never reaches the box that took its name). Helpers reading one
-  session (`id_field`, `ls_lists`) select by id. Names stay the user-facing
-  key: host aliases, settings entries, the extension.
+  through, never writes; nor does anything under `PICK_NOADOPT=1`, which every
+  command but `open`, `attach`, `ssh`, `_proxy` and `destroy` sets:
+  `ssh-config`, `config`, `setup` (the extension runs it on startup), `gc`,
+  `status`, `_sessions` and `doctor`; they count it own without writing);
+  several boxes named NAME, none recorded, or a bad `id` file: no id (`box_id`
+  status 2, `BWHY`; also a listed box with a null or non-UUID id, `pick_id` 7,
+  which is never "none", so `destroy` keeps our keys), so an explicit NAME
+  dies saying why, `doctor` warns, it is not own and gets no stanza or
+  settings entry; never a by-name call. A recorded id is never traded for a
+  box found by name: ours gone (id unlisted; `pick_id` 5) with another box
+  named NAME is `box_id` status 5, "your box NAME is gone": `destroy NAME`
+  drops only our keys and records, everything else refuses; ours listed under
+  another name (`pick_id` 6) is refused everywhere. A NAME chosen from the own
+  list (the cwd, the picker) resolves with `own`, and so does one the
+  extension sends: its `destroy` and `attach` calls pass the hidden `--own`:
+  NAME must still be own ("NAME is not a box of min-cursor's"), and `destroy
+  --own` also refuses a key dir with no `id` ("NAME has no recorded box id
+  yet"), so the view's Destroy and Clean up never reach a box found only by
+  its name. `gc` never adopts: a key dir with no `id` is listed ("no id
+  recorded (attach NAME once)"), never asked about; `gc` destroys only a box
+  whose recorded id `min ls` lists. A failed `min ls` keeps every stanza but a
+  bad-id one. An explicit NAME that is not own and has no recorded id reaches
+  the one box of that name (`attach`, `ssh`, `open -n`, `destroy`), refused
+  when several share it; `_proxy NAME` only an own box, or the one box of that
+  name when there is no key dir at all (a stanza of a box of ours that is gone
+  never reaches the box that took its name). Helpers reading one session
+  (`id_field`, `ls_lists`) select by id. Names stay the user-facing key: host
+  aliases, settings entries, the extension.
 - `gc` offers only own sessions (`own_ls`: a key dir `STATE/sessions/NAME`
   whose recorded id `min ls` lists under NAME; `status --json` gives `id`),
   and `gc`/`status` date only those in `orphan/` (`track_orphans`, each run);
@@ -108,10 +112,11 @@ which also work alone from a terminal.
   Only an explicit NAME (`attach NAME`, `destroy NAME`, `open -n NAME`) may
   reach another tool's box.
 - In use = some host process runs `min session exec X ... sshd` (any ssh
-  client's connection); X is an id (`in_use_names` also prints the name
-  whose `sessions/NAME/id` holds it) or a bare name (connections from
-  before ids, other tools). Never contact a box without such a live
-  process: a connect starts a stopped box.
+  client's connection), for an own box by its name or its id (gc rows,
+  `gc_still_idle`, `st_used`, `track_orphans`); X is an id (`in_use_names`
+  also prints the name whose `sessions/NAME/id` holds it) or a bare name
+  (connections from before ids, other tools). Never contact a box without such
+  a live process: a connect starts a stopped box.
 - `gc` re-checks `gc_still_idle` before each question.
 - `config`/doctor never prune on a failed `min ls`. `--remove` restores the
   bytes it found (brace framing, CRLF, BOM); a user's own remotePlatform
@@ -136,13 +141,16 @@ which also work alone from a terminal.
 
 ## External facts that bite
 
-- min 0.8.0-dev.381 ([gominimal/minimal#2756](https://github.com/gominimal/minimal/pull/2756),
-  BOX-004/005): a session name is an alias many boxes may share. Only a
-  pending, materializing or running box holds it; a stopped box keeps it
-  and a new box may reuse it; a name resolves to the running box, else the
-  latest. `session exec`, `attach`, `destroy`, `rename` and `policy` take a
-  full session id first (`SessionLookup::parse`), and `min ls --json` gives
-  each session's `id` (lowercase hex UUID) and `name` (which may be null).
+- min 0.8.0-dev.381
+  ([gominimal/minimal#2756](https://github.com/gominimal/minimal/pull/2756),
+  BOX-004/005): a session name is an alias many boxes may share. A stopped box
+  keeps its name, and `min ls` still lists it, but it doesn't stop a new box
+  from taking the name; only a running box (or a resume in flight) does
+  (minimald's `claim_name`/`running_name_holder`). A name resolves to the
+  running box, else the latest. `session exec`, `attach`, `destroy`, `rename`
+  and `policy` take a full session id first (`SessionLookup::parse`), and `min
+  ls --json` gives each session's `id` (lowercase hex UUID) and `name` (which
+  may be null).
 
 - `min` is a zsh function on the host; `MIN_BIN` is resolved to an absolute
   path and baked into each stanza (Cursor spawns ssh with the launchd PATH).

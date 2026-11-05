@@ -58,9 +58,10 @@ never replaces a recorded id with another one.
 ### Box ids
 
 min 0.8 ([gominimal/minimal#2756](https://github.com/gominimal/minimal/pull/2756))
-made a session name an alias: only a pending, materializing or running box
-holds it, a stopped box keeps it, a new box may take it, and min resolves a
-name to the running box, else the latest. Every min command min-cursor runs
+made a session name an alias: a stopped box keeps its name, and `min ls`
+still lists it, but it doesn't stop a new box from taking the name; only a
+running box (or a resume in flight) does. min resolves a name to the
+running box, else the latest. Every min command min-cursor runs
 takes a full session id first, so min-cursor addresses its own boxes by id:
 `session exec` (prepare, `_proxy`, `ssh`'s ProxyCommand) and `session
 destroy`. The id is `sessions/NAME/id`, one line, checked against
@@ -72,28 +73,30 @@ name stays the handle: `ssh min-cursor.NAME`, the settings entry, the
 extension and the commands.
 
 Own means: a key dir whose recorded id `min ls` lists under the dir's name
-(a box renamed outside min-cursor, or another tool's box that took the
-name, is not own). A key dir from before ids is adopted, its id written by
-a command that acts on the box (`open`, `attach`, `ssh`, `_proxy`,
-`destroy`, `gc`), when exactly one box has its name; only that box adopts,
-never the other key dirs a refresh of the stanzas or settings looks at.
-Every other command
-(`ssh-config`, `config`, `setup`, each with any option; `gc --dry-run`,
+(a box renamed outside min-cursor, or another tool's box that took the name,
+is not own). A key dir from before ids is adopted, its id written by a
+command that acts on the box (`open`, `attach`, `ssh`, `_proxy`, `destroy`),
+when exactly one box has its name; only that box adopts, never the other key
+dirs a list or a refresh of the stanzas or settings looks at. Every other
+command (`ssh-config`, `config`, `setup`, each with any option; `gc`,
 `status`, completions and `doctor`) counts it own without writing; `doctor`
-says it will be adopted. A box min lists with no id, or one that is no
-session id, is never reached and never counts as gone. With
-several, none is own, no stanza or settings entry is written for it, and
-`doctor` warns. The adoption has a risk: a legacy key dir whose own box is
-long gone adopts the one box that now holds the name, whoever made it.
-"Gone" is a successful `min ls` that no longer lists the recorded id. A
-recorded id is never traded for a box found by name: when ours is gone and
-another box has the name, `destroy NAME` drops only our keys and records,
-and `attach`, `ssh`, `open -n` and `_proxy` refuse ("your box NAME is gone;
-another box now has the name"); when min lists our id under another name
-(renamed outside min-cursor), everything refuses. `_proxy NAME` reaches
-only an own box (or, with no key dir at all, the one box of that name).
-When `min ls` fails, the stanzas on disk stay (all but those with a bad
-`id`); `_proxy` decides at connect.
+says it will be adopted. `gc` lists such a key dir as "no id recorded
+(attach NAME once)" and never asks about it, and `destroy --own` (the
+extension's Destroy and Clean up) refuses it: neither ever destroys a box
+found only by its name. A box min lists with no id, or one that is no
+session id, is never reached and never counts as gone. With several, none is
+own, no stanza or settings entry is written for it, and `doctor` warns. The
+adoption has a risk: a legacy key dir whose own box is long gone adopts the
+one box that now holds the name, whoever made it. "Gone" is a successful
+`min ls` that no longer lists the recorded id. A recorded id is never traded
+for a box found by name: when ours is gone and another box has the name,
+`destroy NAME` drops only our keys and records, and `attach`, `ssh`, `open
+-n` and `_proxy` refuse ("your box NAME is gone; another box now has the
+name"); when min lists our id under another name (renamed outside
+min-cursor), everything refuses. `_proxy NAME` reaches only an own box (or,
+with no key dir at all, the one box of that name). When `min ls` fails, the
+stanzas on disk stay (all but those with a bad `id`); `_proxy` decides at
+connect.
 
 ### Stanzas and `_proxy`
 
@@ -156,10 +159,10 @@ contacts a box to find out.
 settings.json is JSONC and Cursor edits it too, so it is never rewritten
 from a parsed object. The merger blanks comments (keeping byte offsets) to
 parse it, then makes one of two textual edits: a marked block after the
-opening brace holding `remote.SSH.remotePlatform` when you do not have it, or,
-when you do, a replacement of just that object's value. It writes no other
-key: Cursor's Remote-SSH has no `remote.SSH.useLocalServer`. A
-`--sync NAME...` list is the full set of live prepared own sessions; entries with
+opening brace holding `remote.SSH.remotePlatform` when you do not have it,
+or, when you do, a replacement of just that object's value. It writes no
+other key: Cursor's Remote-SSH has no `remote.SSH.useLocalServer`. A `--sync
+NAME...` list is the full set of live prepared own sessions; entries with
 the `min-cursor.` prefix not in it are dropped, every other entry stays,
 including ones Cursor added inside our block. The opt-in record is
 `STATE/settings-installed`; a refresh is skipped when `min ls` fails, so a

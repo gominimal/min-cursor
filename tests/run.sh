@@ -2508,6 +2508,94 @@ case_extension_passes_own() {
     :
 }
 
+# a key dir with no id is never adopted and destroyed in one step by the
+# view (destroy --own) or gc; a plain destroy NAME still reaches the box
+case_ids_legacy_never_destroyed_by_own_or_gc() {
+    own_legacy alpha
+    reset_log
+    run destroy -y --own alpha
+    assert_rc 1
+    assert_err_contains "alpha has no recorded box id yet; attach it once so $TOOL records it, or run $TOOL destroy alpha in a terminal"
+    assert_log_not_contains "session destroy"
+    assert_no_file "$STATE/sessions/alpha/id"
+    run_stdin 'y
+' gc
+    assert_rc 0
+    assert_out_contains "no id recorded (attach alpha once)"
+    ! grep -q 'Destroy Minimal session alpha' "$T/err" || fail "gc asked about a key dir with no id"
+    assert_log_not_contains "session destroy"
+    assert_no_file "$STATE/sessions/alpha/id"
+    run destroy -y alpha
+    assert_rc 0
+    assert_log_contains "min session destroy $ID_A"
+}
+
+# a min ls whose sessions are not all objects is no session list; pick_id
+# given unreadable input says so (8), never "none" (1)
+case_ids_ls_non_object_is_failure() {
+    installed
+    printf '{"sessions":[{"id":"%s","name":"alpha","project_path":"%s","status":"active"},1]}\n' "$ID_A" "$AP" \
+        > "$FIXTURES/sessions.json"
+    reset_log
+    run destroy -y alpha
+    assert_rc 1
+    assert_err_contains "min ls failed"
+    assert_log_not_contains "session destroy"
+    assert_file "$STATE/sessions/alpha/id" "$ID_A"
+    run open -n alpha --no-window
+    assert_rc 1
+    assert_log_not_contains "session activate"
+    sed '/^# ---- main/,$d' "$BIN" > "$T/lib"
+    sh -c '. "$1"; pick_id alpha "{\"sessions\":[1]}"' sh "$T/lib" >"$T/out" 2>"$T/err"; RC=$?
+    assert_rc 8
+    sh -c '. "$1"; box_id alpha "{\"sessions\":[1]}" || echo "$?:$BWHY"' sh "$T/lib" >"$T/out" 2>"$T/err"
+    assert_out_eq "2:could not read min ls"
+    sh -c '. "$1"; pick_id .. "{\"sessions\":[]}"' sh "$T/lib" >"$T/out" 2>"$T/err"; RC=$?
+    assert_rc 1
+}
+
+# a legacy own dir whose box another client reached by id is in use
+case_ids_legacy_in_use_by_id() {
+    own_legacy alpha
+    exec_line 101 1 "$ID_A"
+    run status --json
+    assert_rc 0
+    [ "$(jq -c 'map(select(.name == "alpha")) | map([.own, .in_use])' "$T/out")" = '[[true,true]]' ] \
+        || fail "status --json: $(cat "$T/out")"
+    run gc --dry-run
+    assert_out_contains "no active sessions without an ssh client"
+    assert_no_file "$STATE/sessions/alpha/id"
+}
+
+# lists never adopt a bystander legacy dir: open's reuse, gc answered n, the
+# attach picker and destroy's cwd lookup adopt only the box chosen, if any
+case_ids_bystander_never_adopted() {
+    installed
+    cat > "$FIXTURES/sessions.json" <<JSON
+{"sessions":[{"id":"$ID_A","name":"alpha","project_path":"$AP","status":"active"},
+ {"id":"$ID_B","name":"beta","project_path":"$T/beta-proj","status":"active"}]}
+JSON
+    own_legacy beta
+    run open "$AP" --no-window
+    assert_rc 0
+    assert_log_not_contains "session activate"
+    assert_no_file "$STATE/sessions/beta/id"
+    run_stdin 'n
+n
+' gc
+    assert_rc 0
+    assert_no_file "$STATE/sessions/beta/id"
+    run_tty '1
+' attach --no-window
+    assert_rc 0
+    assert_err_contains " 1) alpha"
+    assert_no_file "$STATE/sessions/beta/id"
+    (cd "$AP" && run_stdin 'n
+' destroy)
+    assert_no_file "$STATE/sessions/beta/id"
+    assert_file "$STATE/sessions/alpha/id" "$ID_A"
+}
+
 CASES="
 gc_no_own_sessions_yet open_activates_and_launches_editor open_reuses_live_session_for_path open_skips_foreign_session_for_path
 open_needs_ssh_config
@@ -2547,6 +2635,7 @@ ids_shared_name_reaches_ours ids_open_shared_name_refused ids_legacy_unique_adop
 ids_legacy_ambiguous_not_own ids_activate_records_id ids_in_use_maps_id ids_corrupt_id_refused
 ids_gone_box_not_taken_over ids_ls_junk_keeps_state ids_listed_without_id_kept ids_own_flag_refuses_foreign
 ids_only_target_adopts ids_status_foreign_in_use_by_id ids_ls_failure_drops_bad_id_stanza ids_ls_json_noise_is_failure extension_passes_own
+ids_legacy_never_destroyed_by_own_or_gc ids_ls_non_object_is_failure ids_legacy_in_use_by_id ids_bystander_never_adopted
 "
 
 # Nothing under ~/.ssh unless the case opted in to ssh-config.

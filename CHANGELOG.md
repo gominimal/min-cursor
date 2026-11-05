@@ -18,11 +18,15 @@ All notable changes to this project are documented here. The format follows
   [gominimal/minimal#2756](https://github.com/gominimal/minimal/pull/2756),
   lets boxes share a name and resolves a name to the running box):
   min-cursor records each box's id in `STATE/sessions/NAME/id` and passes it
-  to every `min session exec` and `min session destroy`, so another tool's
-  box of the same name is never connected to or destroyed, and never listed
-  (CLI, the Minimal view, completions; `status --json` now carries each
-  `id`). A key dir from before takes the id of the one box with its name;
-  when several share it, min-cursor leaves them alone and `doctor` says so.
+  to every `min session exec` and `min session destroy`, so a box is
+  reached by the id recorded for it, never by a name another tool's box now
+  holds (CLI, the Minimal view, completions; `status --json` now carries
+  each `id`). A key dir from before takes the id of the one box with its
+  name when a command acts on that box (`open`, `attach`, `ssh`, a
+  connect, a plain `destroy NAME`), whoever made that box; when several
+  share it, min-cursor leaves them alone and `doctor` says so. `gc` and the
+  view's Destroy and Clean up never adopt: they destroy only a box whose
+  recorded id min lists.
 
 ### Fixed
 

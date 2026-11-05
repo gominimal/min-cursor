@@ -8,7 +8,7 @@ box, where `min-cursor` is not installed.
 | `min-cursor open [PATH] [-n NAME] [--no-window]` | the session for `PATH` (default `.`): a live one min-cursor made is reused, else one is activated with `--loadout cursor`; then Cursor opens `/workbench` in it. Prints `min-cursor.NAME` |
 | `min-cursor new [PATH \| --empty] [-n NAME] [--no-window]` | always a new session for `PATH`, then Cursor; `--empty`: an empty `/workbench` (`--sync none`), named by min (`box-<hex>`) |
 | `min-cursor attach [NAME] [--no-window]` | an existing session in Cursor (no NAME: pick one of its own) |
-| `min-cursor destroy [-y] [--if-idle] [--force] [NAME]` | ask `[y/N]`, then destroy (no NAME: its one session for the current directory); `--if-idle` refuses with exit 3 while something is connected. Without a terminal, min refuses a session with unsaved changes: exit 4; `-y --force` discards them. When the `min ls` that follows fails, the session's keys and stanza stay, with a warning, and after a y the exit is non-zero (min's own status, or 1 when min destroyed it); once `min ls` no longer lists it, `destroy NAME` removes what was kept |
+| `min-cursor destroy [-y] [--if-idle] [--force] [NAME]` | ask `[y/N]`, then destroy (no NAME: its one session for the current directory); `--if-idle` refuses with exit 3 while something is connected. Without a terminal, min refuses a session with unsaved changes: exit 4; `-y --force` discards them. When the `min ls` that follows fails, the session's keys and stanza stay, with a warning, and after a y the exit is non-zero (min's own status, or 1 when min destroyed it); once `min ls` lists its id no more (a key dir with no id: once no box is named NAME), `destroy NAME` removes what was kept |
 | `min-cursor gc [--older-than SECONDS] [--dry-run]` | list active sessions no ssh client is using (oldest first), then ask `[y/N/q]` for each |
 | `min-cursor status [--json]` | table: session, status, project, in use, idle age; `--json`: `[{name, id, status, project, own, empty, in_use, idle}]` (`id`: min's session id; `own`: min-cursor's box, by that id; idle in seconds or null, own boxes only) |
 | `min-cursor doctor` | health report; exits 1 on any FAIL |
@@ -23,8 +23,11 @@ itself (`vscode-remote://ssh-remote+min-cursor.NAME/workbench`).
 
 `--own` (`attach`, `destroy`; internal, the extension's): NAME must still
 be one of min-cursor's own boxes, as one picked from its list; otherwise the
-command refuses ("NAME is not a box of min-cursor's"), so a stale row in the
-Minimal view never reaches another tool's box of the same name.
+command refuses ("NAME is not a box of min-cursor's"). `destroy --own` also
+refuses a key dir with no recorded id ("NAME has no recorded box id yet"), so
+the view's Destroy and Clean up only reach a box by the id min-cursor
+recorded. `gc` likewise lists such a key dir as "no id recorded (attach NAME
+once)" and never asks about it.
 
 Names: without `-n`, min names a new session (`<dir>-<hex>`, e.g.
 `myproject-3f9c`), and min-cursor takes the one new session for the path.
@@ -44,7 +47,8 @@ without NAME, the `attach` picker and completions pass them over too; only
 an explicit NAME (`attach NAME`, `destroy NAME`, `open -n NAME`) reaches one.
 
 Box ids: since min 0.8 several boxes may share a name (a stopped box keeps
-it, and a new one may take it), and min picks the running one, else the
+its name and is still listed, but a new box may take the name; only a
+running box holds it), and min picks the running one, else the
 latest, for a name. So min-cursor reaches its own boxes by the id it recorded
 when it made or first connected to them; the name stays the handle (`ssh
 min-cursor.NAME`, the settings entry, the extension, the commands). A box is
