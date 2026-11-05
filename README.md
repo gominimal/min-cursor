@@ -67,6 +67,9 @@ mkdir -p ~/.local/bin
 ln -s /Applications/Cursor.app/Contents/Resources/app/bin/cursor ~/.local/bin/cursor
 ```
 
+`~/.local/bin` must be on your `PATH` for the shell to find the link; if it is
+not, add it to your shell profile or link into a directory that already is.
+
 Installing may print a `DEP0169` deprecation warning. You can ignore it; the
 extension is installed.
 

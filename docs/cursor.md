@@ -10,8 +10,8 @@ extension.
 
 - Cursor with the `cursor` shell command (Command Palette, "Shell Command:
   Install 'cursor' command in PATH"). If it is installed but not found, run
-  `ln -s /Applications/Cursor.app/Contents/Resources/app/bin/cursor
-  ~/.local/bin/cursor`.
+  `mkdir -p ~/.local/bin && ln -s /Applications/Cursor.app/Contents/Resources/app/bin/cursor
+  ~/.local/bin/cursor`, and make sure `~/.local/bin` is on your `PATH`.
 - Cursor's own Remote-SSH extension, `anysphere.remote-ssh` (bundled with
   current Cursor; `cursor --install-extension anysphere.remote-ssh`).
   Microsoft's `ms-vscode-remote.remote-ssh` does not run in Cursor and is not
