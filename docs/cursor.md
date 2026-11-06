@@ -112,8 +112,8 @@ Glass unless it says otherwise.
   loop through Cursor's cloud. A pool's row shows the name its operator gave
   it. min-cursor uses neither pools nor a
   [My Machines](https://cursor.com/docs/cloud-agent/self-hosted/my-machines)
-  worker: a worker would put a Cursor credential in the box, where today only
-  a public key goes.
+  worker: a worker would put a Cursor credential in the box, where min-cursor
+  itself puts only a public SSH key.
 
 A real entry needs a change in Cursor; see
 [#12](https://github.com/norrietaylor/cursor/issues/12).
