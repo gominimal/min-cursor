@@ -155,5 +155,6 @@ which also work alone from a terminal.
   used.
 - The `min:motd` banner shows once in a Cursor terminal over real sshd, and
   Cursor's shell-env probe leaves `MINIMAL_MOTD` for it.
-- The **Run on** rows `docs/cursor.md` describes for a box: read from the
-  Cursor 3.27.22 bundle, never seen on screen.
+- The **Run on** rows `docs/cursor.md` describes for a box's remote workspace:
+  read from the Cursor 3.27.22 bundle, never seen on screen. Its My Machines
+  worker row was seen and run on 2026-11-06.

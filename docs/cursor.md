@@ -76,10 +76,13 @@ Read from `anysphere.remote-ssh` 1.1.16 (Cursor 3.23.12) on 2026-10-16:
 
 ## The "Run on" menu
 
-The **Run on** menu in Cursor's Agents window has no Minimal entry, and
-min-cursor cannot add one. A box appears there as an ordinary remote
-workspace. To run Cursor's agent in a box, open the box from the Minimal view
-in IDE mode and use the agent in that window.
+The **Run on** menu in Cursor's Agents window has no top-level Minimal entry,
+and min-cursor cannot add one. A box can appear there in two ways: as an
+ordinary remote workspace, or as a
+[My Machines](https://cursor.com/docs/cloud-agent/self-hosted/my-machines)
+worker (see [below](#a-box-as-a-my-machines-worker)). To run Cursor's agent in
+a box with nothing extra in it, open the box from the Minimal view in IDE mode
+and use the agent in that window.
 
 Read from the Cursor 3.27.22 app files on 2026-11-05, not seen on screen.
 Cursor changes these labels often. This version carries two Agents window
@@ -110,13 +113,39 @@ Glass unless it says otherwise.
   [Self-Hosted Pools](https://cursor.com/docs/cloud-agent/self-hosted/pool),
   which need Cursor Enterprise and a service-account key and run the agent
   loop through Cursor's cloud. A pool's row shows the name its operator gave
-  it. min-cursor uses neither pools nor a
-  [My Machines](https://cursor.com/docs/cloud-agent/self-hosted/my-machines)
-  worker: a worker would put a Cursor credential in the box, where min-cursor
-  itself puts only a public SSH key.
+  it.
 
-A real entry needs a change in Cursor; see
+A top-level entry needs a change in Cursor; see
 [#12](https://github.com/norrietaylor/cursor/issues/12).
+
+### A box as a My Machines worker
+
+A Cursor worker running in a box puts a row in the menu, under
+**Remote Machine > My Machines**, and an agent started from that row runs its
+tool calls in the box. Tested by hand on 2026-11-06 with Cursor CLI
+`2026.11.05-86047df` on an aarch64 box and a personal Cursor account:
+
+```sh
+curl https://cursor.com/install -fsS | bash
+agent login
+agent worker --name Minimal --worker-dir /workbench/REPO start
+```
+
+- **The row.** Its label is the worker folder's name, with `--name` in grey
+  beside it, so `/workbench` shows as `workbench`.
+- **Git.** A worker in a folder with no git repository could not be selected;
+  the same worker in a clone with an `origin` remote could. That was one
+  before-and-after test, and no repository was picked in the first attempt, so
+  treat this as likely, not proven.
+- **Plan.** No Enterprise plan was needed. A team account may need an admin to
+  turn on **Allow Personal Machines**; that was not tested.
+- **Lifetime.** The row is there only while the worker runs. It does not create
+  boxes on demand, nothing restarts it after a box reboots, and by default it
+  exits after an hour idle (`--idle-release-timeout`).
+- **Credentials.** `agent login` keeps a Cursor credential in the box, so
+  anything running there can use it. `agent logout` removes it. Without GitHub
+  credentials in the box an agent can commit but not push, and Cursor's minted
+  GitHub tokens are for pool workers only.
 
 ## Settings (`min-cursor config`)
 
