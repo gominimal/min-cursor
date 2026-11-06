@@ -9,7 +9,9 @@ extension.
 ## Requirements
 
 - Cursor with the `cursor` shell command (Command Palette, "Shell Command:
-  Install 'cursor' command in PATH").
+  Install 'cursor' command in PATH"). If it is installed but not found, run
+  `mkdir -p ~/.local/bin && ln -s /Applications/Cursor.app/Contents/Resources/app/bin/cursor
+  ~/.local/bin/cursor`, and make sure `~/.local/bin` is on your `PATH`.
 - Cursor's own Remote-SSH extension, `anysphere.remote-ssh` (bundled with
   current Cursor; `cursor --install-extension anysphere.remote-ssh`).
   Microsoft's `ms-vscode-remote.remote-ssh` does not run in Cursor and is not
@@ -127,6 +129,10 @@ The file is `~/Library/Application Support/Cursor/User/settings.json`, or
   `min-cursor attach NAME`.
 - **Host key changed after recreating a session.** Reconnect: `_proxy`
   re-pins before sshd starts.
+- **Claude login fails in a box.** The browser authorizes, then
+  `localhost:PORT/callback` fails with `ERR_CONNECTION_REFUSED`. Workaround:
+  trust `claude.com` and all its subdomains. This is a workaround; the cause
+  is not confirmed. Each box needs its own sign-in.
 - **Window opens but the terminal is in `/home`.** The `min:workbench` rc
   line moves interactive shells that start in `$HOME`; sessions without the
   loadout get it on the next connect.
