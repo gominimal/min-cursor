@@ -6,7 +6,10 @@
 - **The one opt-in exception: `min-cursor worker`.** It keeps your Cursor login
   in that box, and anything running there can use it. You log in inside the
   box, so the credential never passes through min-cursor. It stays until
-  `min-cursor worker --logout NAME` or until the box is destroyed.
+  `min-cursor worker --logout NAME` or until the box is destroyed. While a
+  worker runs, the agent loop runs in Cursor's cloud, so the file contents,
+  terminal output and diffs it needs go to Cursor, and artifacts upload by
+  default.
 - **`~/.ssh/config` is yours.** Nothing under `~/.ssh` is touched until
   `min-cursor ssh-config` runs. That adds two marked lines at the top of
   `~/.ssh/config` and keeps the stanzas in `~/.ssh/min-cursor.conf`;

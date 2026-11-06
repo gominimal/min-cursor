@@ -297,7 +297,8 @@ async function runWorker(item: Item | undefined): Promise<void> {
     modal: true,
     detail: 'The box shows under Run on > Remote Machine > My Machines while the terminal stays open.\n\n' +
       "Your Cursor login is stored in the box, and anything running there can use it. It stays until you destroy the box or run " +
-      `${TOOL} worker --logout ${sb.name}.`,
+      `${TOOL} worker --logout ${sb.name}.\n\n` +
+      "The agent loop runs in Cursor's cloud, so the file contents and command output it needs go to Cursor.",
   }, 'Run Worker');
   if (ok === 'Run Worker') workerTerminal(sb.name);
 }
