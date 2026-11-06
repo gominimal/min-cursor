@@ -279,6 +279,7 @@ function workerTerminal(name: string): void {
     onDidClose: close.event,
     open: () => {
       p = spawn('/bin/sh', [cli(), 'worker', name], { env: cliEnv(), stdio: ['pipe', 'pipe', 'pipe'] });
+      p.stdin?.on('error', (e) => show(`${e}\n`)); // EPIPE: typing after the CLI exits
       p.stdout?.on('data', show);
       p.stderr?.on('data', show);
       p.on('error', (e) => show(`${e}\n`));
@@ -291,7 +292,7 @@ function workerTerminal(name: string): void {
 }
 
 async function runWorker(item: Item | undefined): Promise<void> {
-  const sb = await choose(item, (s) => s.status === 'active');
+  const sb = await choose(item);
   if (!sb) return;
   const ok = await vscode.window.showWarningMessage(`Run a Cursor worker in ${sb.name}?`, {
     modal: true,

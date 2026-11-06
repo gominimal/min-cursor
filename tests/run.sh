@@ -1316,6 +1316,8 @@ box_env() {
     BOX=$T/box BOXLOG=$T/box.log
     mkdir -p "$BOX/bin" "$BOX/home" "$T/wb"
     : > "$BOXLOG"
+    # A private PATH: an agent installed on this host must not stand in for the fake.
+    for u in bash cat cp grep mkdir sh; do ln -s "$(command -v "$u")" "$BOX/bin/$u"; done
     cat > "$T/agent" <<AGENT
 #!/bin/sh
 echo "agent \$* NO_OPEN_BROWSER=\${NO_OPEN_BROWSER:-}" >> "$BOXLOG"
@@ -1343,7 +1345,7 @@ GIT
 # box_run: the script the last ssh carried, run as the box would, in $T/wb.
 box_run() {
     sed "s|^cd /workbench |cd $T/wb |" "$STUB_LOG.last-arg" > "$T/script"
-    HOME=$BOX/home PATH=$BOX/bin:/usr/bin:/bin sh "$T/script" > "$T/box.out" 2> "$T/box.err" < /dev/null
+    HOME=$BOX/home PATH=$BOX/bin sh "$T/script" > "$T/box.out" 2> "$T/box.err" < /dev/null
     RC=$?
 }
 assert_boxlog() { assert_file_contains "$BOXLOG" "$1"; }
