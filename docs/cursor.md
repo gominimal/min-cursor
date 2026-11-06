@@ -74,6 +74,47 @@ Read from `anysphere.remote-ssh` 1.1.16 (Cursor 3.23.12) on 2026-10-16:
   `$XDG_RUNTIME_DIR` or `/tmp`, with a heartbeat; the commit directory is
   created before the lock is taken.
 
+## The "Run on" menu
+
+The **Run on** menu in Cursor's Agents window has no Minimal entry, and
+min-cursor cannot add one. A box appears there as an ordinary remote
+workspace. To run Cursor's agent in a box, open the box from the Minimal view
+in IDE mode and use the agent in that window.
+
+Read from the Cursor 3.27.22 app files on 2026-11-05, not seen on screen.
+Cursor changes these labels often. This version carries two Agents window
+UIs, Glass and Molten, and Cursor picks which one you get; what follows is
+Glass unless it says otherwise.
+
+- **What a box looks like.** Under **Remote Machine**: the path `/workbench`,
+  with `min-cursor.NAME` below it and a generic server icon. Molten's row is
+  `min-cursor.NAME` alone.
+- **Which boxes are listed.** Rows come from workspaces Cursor already knows.
+  `~/.ssh/config` feeds the Connect dialog, not this list. So a box probably
+  shows only once it has been opened, and only beside the selected project
+  (inferred from the code, not traced to the end).
+- **No route for an extension.** The menu's groups are fixed in Cursor's
+  code, and its variable rows are remote workspaces, plus pools and workers
+  from Cursor's backend. Extension points are the stock VS Code ones, and the
+  [extension API](https://cursor.com/docs/extension-api) documents only `mcp`
+  and `plugins`. The Agents window also filters third-party extensions out,
+  which is why the Minimal view needs IDE mode. That filter was read in Glass
+  only; nothing suggests Molten loads extensions either.
+- **No route through a deep link.** Cursor's
+  [prompt link](https://cursor.com/docs/integrations/deeplinks) only fills in
+  a prompt. It does not start the agent or choose a machine.
+- **Daytona.** The app has no built-in Daytona entry. Daytona connects through
+  [Self-Hosted Pools](https://cursor.com/docs/cloud-agent/self-hosted/pool),
+  which need Cursor Enterprise and a service-account key and run the agent
+  loop through Cursor's cloud. A pool's row shows the name its operator gave
+  it. min-cursor uses neither pools nor a
+  [My Machines](https://cursor.com/docs/cloud-agent/self-hosted/my-machines)
+  worker: a worker would put a Cursor credential in the box, where today only
+  a public key goes.
+
+A real entry needs a change in Cursor; see
+[#12](https://github.com/norrietaylor/cursor/issues/12).
+
 ## Settings (`min-cursor config`)
 
 min-cursor keeps one `remote.SSH.remotePlatform` entry per session in

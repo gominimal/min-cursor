@@ -11,6 +11,9 @@ All notable changes to this project are documented here. The format follows
   interactive `min-cursor ssh` session print it once, with
   "exit or close the terminal" as the detach hint. `min session attach`
   shells are unchanged.
+- `docs/cursor.md` covers Cursor's **Run on** menu: how a box appears there,
+  and why min-cursor cannot add a Minimal entry (checked against Cursor
+  3.27.22). There is no such entry, and this release does not add one.
 
 ### Fixed
 
