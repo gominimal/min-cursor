@@ -155,6 +155,12 @@ else in the box, use that path; the test used a clone under `/workbench`.
   on the machine, but the worker sends the content the agent needs, such as file
   contents, terminal output and diffs. Artifacts such as screenshots and log
   references upload to Cursor-managed storage by default.
+- **One checkout.** Agents on a worker share its folder, so they can conflict
+  with each other and with uncommitted work. Run one at a time, or use separate
+  checkouts.
+- **`gc`.** A worker started by hand holds no ssh connection, so `gc` and
+  `status` see the box as idle and `gc` may offer to destroy it mid-run. Check
+  for a running worker before you answer.
 - **Credentials.** `agent login` keeps a Cursor credential in the box, so
   anything running there can use it. `agent logout` removes it. Without GitHub
   credentials in the box an agent can commit but not push, and Cursor's minted
