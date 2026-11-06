@@ -122,26 +122,39 @@ A top-level entry needs a change in Cursor; see
 
 A Cursor worker running in a box puts a row in the menu, under
 **Remote Machine > My Machines**, and an agent started from that row runs its
-tool calls in the box. Tested by hand on 2026-11-06 with Cursor CLI
-`2026.11.05-86047df` on an aarch64 box and a personal Cursor account:
+tool calls in the box. The agent loop still runs in Cursor's cloud. Tested by
+hand on 2026-11-06 with Cursor CLI `2026.11.05-86047df` on an aarch64 box and a
+personal Cursor account:
 
 ```sh
 curl https://cursor.com/install -fsS | bash
+export PATH="$HOME/.local/bin:$PATH"
 agent login
-agent worker --name Minimal --worker-dir /workbench/REPO start
+agent worker --name Minimal --worker-dir /workbench start
 ```
+
+A box made from a folder has it at `/workbench`. If the repository is somewhere
+else in the box, use that path; the test used a clone under `/workbench`.
 
 - **The row.** Its label is the worker folder's name, with `--name` in grey
   beside it, so `/workbench` shows as `workbench`.
 - **Git.** A worker in a folder with no git repository could not be selected;
   the same worker in a clone with an `origin` remote could. That was one
   before-and-after test, and no repository was picked in the first attempt, so
-  treat this as likely, not proven.
+  treat this as likely, not proven. Cursor's docs don't require a repository,
+  but they do say a machine's repos come from its folders' git remotes.
 - **Plan.** No Enterprise plan was needed. A team account may need an admin to
   turn on **Allow Personal Machines**; that was not tested.
 - **Lifetime.** The row is there only while the worker runs. It does not create
-  boxes on demand, nothing restarts it after a box reboots, and by default it
-  exits after an hour idle (`--idle-release-timeout`).
+  boxes on demand, and nothing restarts it after a box reboots. Cursor's docs
+  say a worker stays connected until you stop it, but this CLI's help gives
+  `--idle-release-timeout` a default of 3600 seconds. The test ran for 22
+  minutes, so it did not settle which applies; pass `0` to turn the timeout off.
+- **Data.** Cursor's
+  [docs](https://cursor.com/docs/cloud-agent/self-hosted) say the checkout stays
+  on the machine, but the worker sends the content the agent needs, such as file
+  contents, terminal output and diffs. Artifacts such as screenshots and log
+  references upload to Cursor-managed storage by default.
 - **Credentials.** `agent login` keeps a Cursor credential in the box, so
   anything running there can use it. `agent logout` removes it. Without GitHub
   credentials in the box an agent can commit but not push, and Cursor's minted
