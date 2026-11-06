@@ -74,6 +74,98 @@ Read from `anysphere.remote-ssh` 1.1.16 (Cursor 3.23.12) on 2026-10-16:
   `$XDG_RUNTIME_DIR` or `/tmp`, with a heartbeat; the commit directory is
   created before the lock is taken.
 
+## The "Run on" menu
+
+The **Run on** menu in Cursor's Agents window has no top-level Minimal entry,
+and min-cursor cannot add one. A box can appear there in two ways: as an
+ordinary remote workspace, or as a
+[My Machines](https://cursor.com/docs/cloud-agent/self-hosted/my-machines)
+worker (see [below](#a-box-as-a-my-machines-worker)). To run Cursor's agent in
+a box with nothing extra in it, open the box from the Minimal view in IDE mode
+and use the agent in that window.
+
+Read from the Cursor 3.27.22 app files on 2026-11-05, not seen on screen.
+Cursor changes these labels often. This version carries two Agents window
+UIs, Glass and Molten, and Cursor picks which one you get; what follows is
+Glass unless it says otherwise.
+
+- **What a box looks like.** Under **Remote Machine**: the path `/workbench`,
+  with `min-cursor.NAME` below it and a generic server icon. Molten's row
+  shows the folder name (`workbench`) with `min-cursor.NAME` as its
+  description. While the box is not connected, the description adds a status
+  such as `Not connected` and the icon is a plug. Once a box is selected, the
+  menu's trigger shows `min-cursor.NAME` alone.
+- **Which boxes are listed.** Rows come from workspaces Cursor already knows.
+  `~/.ssh/config` feeds the Connect dialog, not this list. So a box probably
+  shows only once it has been opened, and only beside the selected project
+  (inferred from the code, not traced to the end).
+- **No route for an extension.** The menu's groups are fixed in Cursor's
+  code, and its variable rows are remote workspaces, plus pools and workers
+  from Cursor's backend. Extension points are the stock VS Code ones, and the
+  [extension API](https://cursor.com/docs/extension-api) documents only `mcp`
+  and `plugins`. The Agents window also filters third-party extensions out,
+  which is why the Minimal view needs IDE mode. That filter was read in Glass
+  only; nothing suggests Molten loads extensions either.
+- **No route through a deep link.** Cursor's
+  [prompt link](https://cursor.com/docs/integrations/deeplinks) only fills in
+  a prompt. It does not start the agent or choose a machine.
+- **Daytona.** The app has no built-in Daytona entry. Daytona connects through
+  [Self-Hosted Pools](https://cursor.com/docs/cloud-agent/self-hosted/pool),
+  which need Cursor Enterprise and a service-account key and run the agent
+  loop through Cursor's cloud. A pool's row shows the name its operator gave
+  it.
+
+A top-level entry needs a change in Cursor; see
+[#12](https://github.com/norrietaylor/cursor/issues/12).
+
+### A box as a My Machines worker
+
+A Cursor worker running in a box puts a row in the menu, under
+**Remote Machine > My Machines**, and an agent started from that row runs its
+tool calls in the box. The agent loop still runs in Cursor's cloud. Tested by
+hand on 2026-11-06 with Cursor CLI `2026.11.05-86047df` on an aarch64 box and a
+personal Cursor account:
+
+```sh
+curl https://cursor.com/install -fsS | bash
+export PATH="$HOME/.local/bin:$PATH"
+agent login
+agent worker --name Minimal --worker-dir /workbench start
+```
+
+A box made from a folder has it at `/workbench`. If the repository is somewhere
+else in the box, use that path; the test used a clone under `/workbench`.
+
+- **The row.** Its label is the worker folder's name, with `--name` in grey
+  beside it, so `/workbench` shows as `workbench`.
+- **Git.** A worker in a folder with no git repository could not be selected;
+  the same worker in a clone with an `origin` remote could. That was one
+  before-and-after test, and no repository was picked in the first attempt, so
+  treat this as likely, not proven. Cursor's docs don't require a repository,
+  but they do say a machine's repos come from its folders' git remotes.
+- **Plan.** No Enterprise plan was needed. A team account may need an admin to
+  turn on **Allow Personal Machines**; that was not tested.
+- **Lifetime.** The row is there only while the worker runs. It does not create
+  boxes on demand, and nothing restarts it after a box reboots. Cursor's docs
+  say a worker stays connected until you stop it, but this CLI's help gives
+  `--idle-release-timeout` a default of 3600 seconds. The test ran for 22
+  minutes, so it did not settle which applies; pass `0` to turn the timeout off.
+- **Data.** Cursor's
+  [docs](https://cursor.com/docs/cloud-agent/self-hosted) say the checkout stays
+  on the machine, but the worker sends the content the agent needs, such as file
+  contents, terminal output and diffs. Artifacts such as screenshots and log
+  references upload to Cursor-managed storage by default.
+- **One checkout.** Agents on a worker share its folder, so they can conflict
+  with each other and with uncommitted work. Run one at a time, or use separate
+  checkouts.
+- **`gc`.** A worker started by hand holds no ssh connection, so `gc` and
+  `status` see the box as idle and `gc` may offer to destroy it mid-run. Check
+  for a running worker before you answer.
+- **Credentials.** `agent login` keeps a Cursor credential in the box, so
+  anything running there can use it. `agent logout` removes it. Without GitHub
+  credentials in the box an agent can commit but not push, and Cursor's minted
+  GitHub tokens are for pool workers only.
+
 ## Settings (`min-cursor config`)
 
 min-cursor keeps one `remote.SSH.remotePlatform` entry per session in
