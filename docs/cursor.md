@@ -87,8 +87,11 @@ UIs, Glass and Molten, and Cursor picks which one you get; what follows is
 Glass unless it says otherwise.
 
 - **What a box looks like.** Under **Remote Machine**: the path `/workbench`,
-  with `min-cursor.NAME` below it and a generic server icon. Molten's row is
-  `min-cursor.NAME` alone.
+  with `min-cursor.NAME` below it and a generic server icon. Molten's row
+  shows the folder name (`workbench`) with `min-cursor.NAME` as its
+  description. While the box is not connected, the description adds a status
+  such as `Not connected` and the icon is a plug. Once a box is selected, the
+  menu's trigger shows `min-cursor.NAME` alone.
 - **Which boxes are listed.** Rows come from workspaces Cursor already knows.
   `~/.ssh/config` feeds the Connect dialog, not this list. So a box probably
   shows only once it has been opened, and only beside the selected project
