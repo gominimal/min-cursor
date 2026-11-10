@@ -1090,6 +1090,17 @@ case_loadout_env_unquoted() {
     assert_file_contains "$B/.ssh/environment" "QUOTED=it's"
 }
 
+# A multi-line value is dropped whole: its NAME=... second line must not
+# become a variable of its own.
+case_loadout_env_drops_multiline() {
+    B=$T/box; mkdir -p "$B"
+    HOME=$B SPACED='a b' MULTI='a
+INJECTED=1' sh -c "$(loadout_hook 0)" < /dev/null
+    assert_file_contains "$B/.ssh/environment" "SPACED=a b"
+    assert_file_not_contains "$B/.ssh/environment" "MULTI="
+    assert_file_not_contains "$B/.ssh/environment" "INJECTED="
+}
+
 # noawk_path: a dir with /usr/bin and /bin but no awk, for the env fallback.
 noawk_path() {
     mkdir -p "$T/noawk"
@@ -1142,8 +1153,7 @@ on_tty() {
 
 # On a terminal over ssh the banner prints once, with the ssh detach hint in
 # place of the attach one, and is unset. A MINIMAL_MOTD that does not parse
-# (~/.ssh/environment keeps only a value's first line) prints nothing, not a
-# syntax error in every shell.
+# prints nothing, not a syntax error in every shell.
 case_motd_rc_line_on_tty() {
     command -v script >/dev/null 2>&1 || return 0
     B=$T/box; mkdir -p "$B"
@@ -1638,6 +1648,14 @@ case_prep_env_unquoted() {
     assert_file_contains "$T/box/.ssh/environment" "QUOTED=it's"
 }
 
+case_prep_env_drops_multiline() {
+    SPACED='a b' MULTI='a
+INJECTED=1' run_prep "$T/p1" || fail "PREP failed: $(cat "$T/p1.err")"
+    assert_file_contains "$T/box/.ssh/environment" "SPACED=a b"
+    assert_file_not_contains "$T/box/.ssh/environment" "MULTI="
+    assert_file_not_contains "$T/box/.ssh/environment" "INJECTED="
+}
+
 case_prep_env_without_awk() {
     ln -s "$STUBS/env" "$T/bin/env"
     PATH=$(noawk_path) SPACED='a b' run_prep "$T/p1" || fail "PREP failed: $(cat "$T/p1.err")"
@@ -1944,7 +1962,7 @@ config_print_and_bad_option config_and_doctor_keep_entries_when_min_ls_fails mer
 merger_symlink_written_through merger_preserves_foreign_entries_cursor_put_in_block
 merger_refuses_foreign_keys_in_block merger_bad_jsonc_left_alone doctor_rows doctor_min_version
 new_empty_no_window attach_no_window destroy_if_idle destroy_unsaved_needs_force status_json setup_installs_follows_and_removes setup_remove_stops_when_config_refuses setup_through_link setup_shares_skills_with_other_tools
-loadout_rc_line_once loadout_env_keeps_motd loadout_env_unquoted loadout_env_without_awk prep_and_loadout_rc_lines_agree motd_rc_line_quiet_without_tty motd_rc_line_on_tty motd_rc_line_skips_attach_shell motd_rc_line_replaces_older
+loadout_rc_line_once loadout_env_keeps_motd loadout_env_unquoted loadout_env_drops_multiline loadout_env_without_awk prep_and_loadout_rc_lines_agree motd_rc_line_quiet_without_tty motd_rc_line_on_tty motd_rc_line_skips_attach_shell motd_rc_line_replaces_older
 sshconfig_install_creates_include_and_stanza sshconfig_remove_restores_original
 sshconfig_coexists_with_another_tool sshconfig_keeps_symlinked_config sshconfig_print_touches_nothing
 sshconfig_destroy_drops_stanza sshconfig_stale_and_invalid_dirs_skipped sshconfig_real_ssh_resolves
@@ -1956,7 +1974,7 @@ proxy_prepares_then_execs_sshd proxy_never_touches_settings_or_editor proxy_fail
 proxy_missing_takes_no_host proxy_log_capped_and_private
 proxy_prepare_write_failure prepare_writes_atomically prepare_rejects_bad_facts prepare_accepts_valid_facts
 prepare_errors_strip_control_bytes stored_user_checked_on_read proxy_rechecks_stored_paths
-prep_extracts_and_prints_facts prep_env_keeps_motd prep_env_unquoted prep_env_without_awk
+prep_extracts_and_prints_facts prep_env_keeps_motd prep_env_unquoted prep_env_drops_multiline prep_env_without_awk
 prep_waiter_keeps_lock_it_does_not_own prep_breaks_stale_lock prep_concurrent_runs_agree_on_host_key
 prep_regenerates_half_pair prep_keygen_failure_releases_lock prep_stale_lock_stress
 open_default_loadouts_toml_forms sshconfig_lock_held_waits_then_fails

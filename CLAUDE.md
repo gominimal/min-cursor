@@ -123,7 +123,9 @@ which also work alone from a terminal.
   project brings them; these loadouts need neither.
 - The box's `env` (coreutils 9.12) shell-quotes values (`X='a b'`), and
   sshd reads `~/.ssh/environment` quotes and all, so PREP and the loadout
-  hook dump the environment with awk's `ENVIRON` (`env` only without awk).
+  hook dump the environment with awk's `ENVIRON` (`env` only without awk),
+  leaving out multi-line values. gawk adds `AWKPATH`/`AWKLIBPATH` when unset;
+  they are left in (filtering them would drop a user's own).
 - sshd scrubs the environment: PREP writes `~/.ssh/environment` (filtering
   `PROMPT_COMMAND`, the attach shell's banner trigger) and sshd runs with
   `PermitUserEnvironment=yes`. `MINIMAL_MOTD` is kept: the `min:motd` rc line
@@ -159,6 +161,8 @@ which also work alone from a terminal.
   used.
 - The `min:motd` banner shows once in a Cursor terminal over real sshd, and
   Cursor's shell-env probe leaves `MINIMAL_MOTD` for it.
+- The box has an awk (without one, both `~/.ssh/environment` writers fall
+  back to the quoting `env`).
 - The **Run on** rows `docs/cursor.md` describes for a box's remote workspace:
   read from the Cursor 3.27.22 bundle, never seen on screen. Its My Machines
   worker row was seen and run on 2026-11-06.
