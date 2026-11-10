@@ -51,6 +51,9 @@ long each has been idle.
 - **`min-cursor-config: the // min-cursor:begin block holds keys of its
   own`.** Something added a setting inside the marked block. Move it below
   `// min-cursor:end`, then run `min-cursor config` again.
+- **The VM will not start after going from `unstable` to `rc`.** Don't
+  downgrade `min` that way: the older daemon cannot read the box index the
+  newer one wrote ([minimal#3060](https://github.com/gominimal/minimal/issues/3060)).
 
 Cursor specifics (platform prompt):
 [cursor.md](cursor.md#troubleshooting).
