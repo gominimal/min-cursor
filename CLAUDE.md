@@ -119,7 +119,8 @@ which also work alone from a terminal.
   character), fallback `cursor.blob.core.windows.net/remote-releases/<commit>/vscode-reh-linux-<arch>.tar.gz`.
   Read from the extension, not yet from a box.
 - The box is uid 1000 with `$HOME=/home`, aarch64, glibc 2.44, has bash, tar,
-  curl, python3, zsh; `sshd` at `/usr/sbin/sshd`.
+  curl; `sshd` at `/usr/sbin/sshd`. No python3 or zsh unless a loadout or the
+  project brings them; these loadouts need neither.
 - sshd scrubs the environment: PREP writes `~/.ssh/environment` (filtering
   `PROMPT_COMMAND`, the attach shell's banner trigger) and sshd runs with
   `PermitUserEnvironment=yes`. `MINIMAL_MOTD` is kept: the `min:motd` rc line
