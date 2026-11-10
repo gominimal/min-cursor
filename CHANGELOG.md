@@ -10,7 +10,10 @@ All notable changes to this project are documented here. The format follows
 - Minimal's banner now shows in ssh shells: each new Cursor terminal and an
   interactive `min-cursor ssh` session print it once, with
   "exit or close the terminal" as the detach hint. `min session attach`
-  shells are unchanged.
+  shells are unchanged. `~/.ssh/environment` is written from awk's
+  `ENVIRON` as raw `NAME=value` lines, because the box's `env` (coreutils
+  9.12) shell-quotes values and sshd would keep the quotes. Multi-line values
+  are left out. Without awk in the box, it falls back to `env`.
 - `docs/cursor.md` covers Cursor's **Run on** menu: how a box appears there,
   why min-cursor cannot add a top-level Minimal entry (checked against Cursor
   3.27.22), and how to get a row under My Machines by running a Cursor worker

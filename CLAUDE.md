@@ -119,7 +119,14 @@ which also work alone from a terminal.
   character), fallback `cursor.blob.core.windows.net/remote-releases/<commit>/vscode-reh-linux-<arch>.tar.gz`.
   Read from the extension, not yet from a box.
 - The box is uid 1000 with `$HOME=/home`, aarch64, glibc 2.44, has bash, tar,
-  curl, python3, zsh; `sshd` at `/usr/sbin/sshd`.
+  curl and awk (GNU Awk 5.4.1; seen 2026-11-10); `sshd` at `/usr/sbin/sshd`.
+  No python3 or zsh unless a loadout or the project brings them; these
+  loadouts need neither.
+- The box's `env` (coreutils 9.12) shell-quotes values (`X='a b'`), and
+  sshd reads `~/.ssh/environment` quotes and all, so PREP and the loadout
+  hook dump the environment with awk's `ENVIRON` (`env` only without awk),
+  leaving out multi-line values. gawk adds `AWKPATH`/`AWKLIBPATH` when unset;
+  they are left in (filtering them would drop a user's own).
 - sshd scrubs the environment: PREP writes `~/.ssh/environment` (filtering
   `PROMPT_COMMAND`, the attach shell's banner trigger) and sshd runs with
   `PermitUserEnvironment=yes`. `MINIMAL_MOTD` is kept: the `min:motd` rc line
