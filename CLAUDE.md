@@ -119,8 +119,9 @@ which also work alone from a terminal.
   character), fallback `cursor.blob.core.windows.net/remote-releases/<commit>/vscode-reh-linux-<arch>.tar.gz`.
   Read from the extension, not yet from a box.
 - The box is uid 1000 with `$HOME=/home`, aarch64, glibc 2.44, has bash, tar,
-  curl; `sshd` at `/usr/sbin/sshd`. No python3 or zsh unless a loadout or the
-  project brings them; these loadouts need neither.
+  curl and awk (GNU Awk 5.4.1; seen 2026-11-10); `sshd` at `/usr/sbin/sshd`.
+  No python3 or zsh unless a loadout or the project brings them; these
+  loadouts need neither.
 - The box's `env` (coreutils 9.12) shell-quotes values (`X='a b'`), and
   sshd reads `~/.ssh/environment` quotes and all, so PREP and the loadout
   hook dump the environment with awk's `ENVIRON` (`env` only without awk),
@@ -161,8 +162,6 @@ which also work alone from a terminal.
   used.
 - The `min:motd` banner shows once in a Cursor terminal over real sshd, and
   Cursor's shell-env probe leaves `MINIMAL_MOTD` for it.
-- The box has an awk (without one, both `~/.ssh/environment` writers fall
-  back to the quoting `env`).
 - The **Run on** rows `docs/cursor.md` describes for a box's remote workspace:
   read from the Cursor 3.27.22 bundle, never seen on screen. Its My Machines
   worker row was seen and run on 2026-11-06.
