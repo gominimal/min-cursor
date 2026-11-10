@@ -121,6 +121,9 @@ which also work alone from a terminal.
 - The box is uid 1000 with `$HOME=/home`, aarch64, glibc 2.44, has bash, tar,
   curl; `sshd` at `/usr/sbin/sshd`. No python3 or zsh unless a loadout or the
   project brings them; these loadouts need neither.
+- The box's `env` (coreutils 9.12) shell-quotes values (`X='a b'`), and
+  sshd reads `~/.ssh/environment` quotes and all, so PREP and the loadout
+  hook dump the environment with awk's `ENVIRON` (`env` only without awk).
 - sshd scrubs the environment: PREP writes `~/.ssh/environment` (filtering
   `PROMPT_COMMAND`, the attach shell's banner trigger) and sshd runs with
   `PermitUserEnvironment=yes`. `MINIMAL_MOTD` is kept: the `min:motd` rc line

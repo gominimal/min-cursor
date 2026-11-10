@@ -18,6 +18,11 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- Minimal's banner was missing in ssh shells on boxes whose `env` shell-quotes
+  values (coreutils 9.12): sshd read `~/.ssh/environment` with the quotes
+  kept, so `MINIMAL_MOTD`, and any value with a space or a quote, arrived
+  corrupted. The loadout and every connect now write the file from awk's
+  `ENVIRON`, raw `NAME=value` lines (`env` only when the box has no awk).
 - `destroy` and `gc`: a failed `min ls` after the answer no longer counts as
   the box being gone. Before, it removed the session's keys, refreshed
   settings and dropped its ssh stanza even after an `n`; now everything is

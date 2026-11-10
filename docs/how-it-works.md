@@ -41,7 +41,8 @@ PUBKEY`. PREP, in the box:
   locks broken by one waiter at a time; the pair renamed into place whole),
   so concurrent connects agree on one key;
 - writes `authorized_keys`;
-- rewrites `~/.ssh/environment` from `env`;
+- rewrites `~/.ssh/environment` from awk's `ENVIRON` (`env` only without
+  awk: the box's `env`, coreutils 9.12, shell-quotes values);
 - appends the `min:workbench` and `min:motd` rc lines (each unless there; an older `min:motd` line is replaced) and a `~/.bash_profile` that sources
   `~/.bashrc`;
 - prints `user=`, `home=`, `sshd=`, `hostkey=`.
