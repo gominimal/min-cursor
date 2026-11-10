@@ -24,8 +24,9 @@ All notable changes to this project are documented here. The format follows
   min-cursor records each box's id in `STATE/sessions/NAME/id` and passes it
   to every `min session exec` and `min session destroy`. Another tool's box
   is never reached under min-cursor's record or by a name min-cursor chose
-  (the Minimal view, the pickers, completions, the current-folder lookup); a
-  box you name explicitly becomes min-cursor's once it connects. `status
+  (the Minimal view, the pickers, completions, the current-folder lookup),
+  except through a key dir from before ids (below); a box you name
+  explicitly becomes min-cursor's once it connects. `status
   --json` now carries each `id` and `recorded`. A key dir from before takes
   the id of the one box with its name when you connect to that box (`open`,
   `attach`, `ssh`, an editor window), whoever made that box; when several
