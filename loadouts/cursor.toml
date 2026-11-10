@@ -10,7 +10,7 @@ description = "sshd for Cursor Remote-SSH (min-cursor)"
 # The box user is uid 1000 with $HOME=/home; every path below hangs off it.
 
 # openssh supplies sshd and ssh-keygen.
-# The box already has bash, tar, curl, python3 and zsh,
+# The box already has bash, tar and curl,
 # which covers Cursor's server; curl is listed so Cursor's installer never
 # depends on the base image. rsync works over
 # `min-cursor.NAME` with xxhash, its missing runtime library. git: Cursor's
