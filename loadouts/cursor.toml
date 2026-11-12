@@ -77,12 +77,19 @@ for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
 done
 # bash login shells (what sshd starts) read ~/.bash_profile, not ~/.bashrc:
 # create one that sources it, or add the (marked) line to one that does not
-# (after a newline, if its last line has none).
-if [ ! -e "$HOME/.bash_profile" ]; then
-  printf '%s\n' '[ -f "$HOME/.bashrc" ] && . "$HOME/.bashrc"' > "$HOME/.bash_profile" </dev/null || true
-elif ! grep -Eqs '(min:bashrc|\.bashrc)' "$HOME/.bash_profile" </dev/null; then
-  [ -z "$(tail -c 1 "$HOME/.bash_profile" </dev/null)" ] || echo >> "$HOME/.bash_profile" </dev/null || true
-  printf '%s\n' '# min:bashrc (managed by min-cursor)' '[ -f "$HOME/.bashrc" ] && . "$HOME/.bashrc"' >> "$HOME/.bash_profile" </dev/null || true
+# (after a newline, if its last line has none). The line skips a nested source
+# (MIN_BASHRC), so a ~/.bashrc that sources ~/.bash_profile does not loop; an
+# older, unguarded line of ours (marked, or a profile that is exactly the line
+# we used to create) is replaced.
+bp="$HOME/.bash_profile"
+src='if [ -z "${MIN_BASHRC:-}" ] && [ -f "$HOME/.bashrc" ]; then MIN_BASHRC=1; . "$HOME/.bashrc"; unset MIN_BASHRC; fi'
+if [ ! -e "$bp" ] || [ "$(cat "$bp" </dev/null)" = '[ -f "$HOME/.bashrc" ] && . "$HOME/.bashrc"' ]; then
+  printf '%s\n' '# min:bashrc (managed by min-cursor)' "$src" > "$bp" </dev/null || true
+elif grep -qs '^# min:bashrc ' "$bp" </dev/null; then
+  grep -qsxF -- "$src" "$bp" </dev/null || { awk -v s="$src" '/^# min:bashrc /{print; print s; x=1; next} x{x=0; next} 1' "$bp" > "$bp.$$" </dev/null && cat "$bp.$$" > "$bp" </dev/null; rm -f "$bp.$$" </dev/null; } || true
+elif ! grep -qs '\.bashrc' "$bp" </dev/null; then
+  [ -z "$(tail -c 1 "$bp" </dev/null)" ] || echo >> "$bp" </dev/null || true
+  printf '%s\n' '# min:bashrc (managed by min-cursor)' "$src" >> "$bp" </dev/null || true
 fi
 true
 '''

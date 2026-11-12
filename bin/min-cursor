@@ -262,7 +262,10 @@ put() {
 # ~/.ssh/environment, and attach shells, without SSH_CONNECTION, keep to it).
 # A `min:motd` line that differs (an older one) is replaced. bash login shells
 # (sshd's) read ~/.bash_profile: one is created that sources ~/.bashrc, or a
-# marked `min:bashrc` line is added to one that does not mention it.
+# marked `min:bashrc` line is added to one that does not mention it. The line
+# skips a nested source (MIN_BASHRC), so a ~/.bashrc that sources
+# ~/.bash_profile does not loop; an older, unguarded line of ours (marked, or
+# a profile that is exactly the line we used to create) is replaced.
 # shellcheck disable=SC2016
 PREP='set -eu
 umask 077
@@ -304,11 +307,15 @@ for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
     printf "%s\n" "# min:motd (managed by $0)" "$motd" >> "$rc"
   fi
 done
-if [ ! -e "$HOME/.bash_profile" ]; then
-  printf "%s\n" "[ -f \"\$HOME/.bashrc\" ] && . \"\$HOME/.bashrc\"" > "$HOME/.bash_profile"
-elif ! grep -Eqs "(min:bashrc|\.bashrc)" "$HOME/.bash_profile"; then
-  [ -z "$(tail -c 1 "$HOME/.bash_profile")" ] || echo >> "$HOME/.bash_profile"
-  printf "%s\n" "# min:bashrc (managed by $0)" "[ -f \"\$HOME/.bashrc\" ] && . \"\$HOME/.bashrc\"" >> "$HOME/.bash_profile"
+bp="$HOME/.bash_profile"
+src="if [ -z \"\${MIN_BASHRC:-}\" ] && [ -f \"\$HOME/.bashrc\" ]; then MIN_BASHRC=1; . \"\$HOME/.bashrc\"; unset MIN_BASHRC; fi"
+if [ ! -e "$bp" ] || [ "$(cat "$bp")" = "[ -f \"\$HOME/.bashrc\" ] && . \"\$HOME/.bashrc\"" ]; then
+  printf "%s\n" "# min:bashrc (managed by $0)" "$src" > "$bp"
+elif grep -qs "^# min:bashrc " "$bp"; then
+  grep -qsxF -- "$src" "$bp" || { awk -v s="$src" "/^# min:bashrc /{print; print s; x=1; next} x{x=0; next} 1" "$bp" > "$bp.$$" && cat "$bp.$$" > "$bp"; rm -f "$bp.$$"; }
+elif ! grep -qs "\.bashrc" "$bp"; then
+  [ -z "$(tail -c 1 "$bp")" ] || echo >> "$bp"
+  printf "%s\n" "# min:bashrc (managed by $0)" "$src" >> "$bp"
 fi
 echo "user=$(id -un)"
 echo "home=$HOME"
