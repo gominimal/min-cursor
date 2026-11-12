@@ -122,8 +122,9 @@ which also work alone from a terminal.
   contact a box without such a live process: a connect starts a stopped box.
 - `gc` re-checks `gc_still_idle` before each question.
 - `worker` is the one path that puts a credential in a box, and only when run
-  explicitly: nothing starts it from `open`, `setup` or a hook. The login is
-  typed in the box, never read or stored on the host. It stays in the
+  explicitly: nothing starts it from `open`, `setup` or a hook. The login
+  runs in the box; what is typed for it passes through the host terminal and
+  ssh in transit, and the host keeps nothing of it. It stays in the
   foreground over `ssh -tt`, never detached, so it counts as in use and ends
   with its terminal; the extension kills its workers on `deactivate` too. A
   picked NAME, and every call from the extension (`--own`), must be an own
