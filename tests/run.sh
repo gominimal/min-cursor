@@ -1291,6 +1291,39 @@ case_bash_profile_sources_bashrc() {
     done
 }
 
+# A ~/.bashrc that sources ~/.bash_profile does not loop through our line: a
+# bash login shell and an interactive one both finish, ~/.bashrc run once per
+# entry. Either writer upgrades an older, unguarded line of ours (marked, or
+# the profile we used to create) to the guarded one and keeps the rest.
+# shellcheck disable=SC2016  # rc lines, literal
+case_bash_profile_guards_reentry() {
+    command -v bash >/dev/null 2>&1 || { skip "no bash"; return 0; }
+    for w in loadout prep; do
+        for start in none created marked; do
+            rm -rf "$T/box"; mkdir -p "$T/box"
+            printf '%s\n' 'N=$((${N:-0} + 1))' '[ -f "$HOME/.bash_profile" ] && . "$HOME/.bash_profile"' > "$T/box/.bashrc"
+            case $start in
+                created) printf '%s\n' '[ -f "$HOME/.bashrc" ] && . "$HOME/.bashrc"' > "$T/box/.bash_profile" ;;
+                marked) printf '%s\n' 'export FOO=1' "# min:bashrc (managed by $TOOL)" '[ -f "$HOME/.bashrc" ] && . "$HOME/.bashrc"' 'export BAR=2' > "$T/box/.bash_profile" ;;
+            esac
+            for _ in 1 2; do
+                if [ $w = loadout ]; then HOME=$T/box sh -c "$(loadout_hook 0)" < /dev/null
+                else run_prep "$T/p1" || fail "PREP failed: $(cat "$T/p1.err")"; fi
+            done
+            p=$T/box/.bash_profile
+            [ "$(grep -c 'min:bashrc' "$p")" = 1 ] || fail "$w/$start: $(cat "$p")"
+            [ "$(grep -c 'MIN_BASHRC=1' "$p")" = 1 ] || fail "$w/$start: $(cat "$p")"
+            grep -qxF '[ -f "$HOME/.bashrc" ] && . "$HOME/.bashrc"' "$p" && fail "$w/$start: unguarded line left: $(cat "$p")"
+            if [ $start = marked ]; then
+                [ "$(head -1 "$p")" = "export FOO=1" ] || fail "$w/$start: $(cat "$p")"
+                [ "$(tail -1 "$p")" = "export BAR=2" ] || fail "$w/$start: $(cat "$p")"
+            fi
+            o=$(HOME=$T/box bash -l -c 'echo "n=$N"' 2>&1 < /dev/null)
+            [ "$o" = "n=1" ] || fail "$w/$start: bash -l printed: $o"
+        done
+    done
+}
+
 # ---- ssh-config ----------------------------------------------------------------
 
 case_sshconfig_install_creates_include_and_stanza() {
@@ -2981,7 +3014,7 @@ config_print_and_bad_option config_and_doctor_keep_entries_when_min_ls_fails mer
 merger_symlink_written_through merger_preserves_foreign_entries_cursor_put_in_block
 merger_refuses_foreign_keys_in_block merger_bad_jsonc_left_alone doctor_rows doctor_min_version
 new_empty_no_window attach_no_window destroy_if_idle destroy_unsaved_needs_force status_json setup_installs_follows_and_removes setup_remove_stops_when_config_refuses setup_through_link setup_shares_skills_with_other_tools
-loadout_rc_line_once loadout_env_keeps_motd loadout_env_unquoted loadout_env_drops_multiline loadout_env_without_awk prep_and_loadout_rc_lines_agree motd_rc_line_quiet_without_tty motd_rc_line_on_tty motd_rc_line_skips_attach_shell motd_rc_line_replaces_older motd_rc_line_survives_errexit motd_rc_line_upgrades_unguarded bash_profile_sources_bashrc
+loadout_rc_line_once loadout_env_keeps_motd loadout_env_unquoted loadout_env_drops_multiline loadout_env_without_awk prep_and_loadout_rc_lines_agree motd_rc_line_quiet_without_tty motd_rc_line_on_tty motd_rc_line_skips_attach_shell motd_rc_line_replaces_older motd_rc_line_survives_errexit motd_rc_line_upgrades_unguarded bash_profile_sources_bashrc bash_profile_guards_reentry
 sshconfig_install_creates_include_and_stanza sshconfig_remove_restores_original
 sshconfig_coexists_with_another_tool sshconfig_keeps_symlinked_config sshconfig_print_touches_nothing
 sshconfig_destroy_drops_stanza sshconfig_stale_and_invalid_dirs_skipped sshconfig_real_ssh_resolves
