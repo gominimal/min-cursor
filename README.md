@@ -53,7 +53,7 @@ brew install jq just node
 Build the extension and install it into Cursor:
 
 ```sh
-git clone https://github.com/norrietaylor/cursor.git min-cursor && cd min-cursor
+git clone https://github.com/gominimal/min-cursor.git min-cursor && cd min-cursor
 just vsix
 cursor --install-extension min-cursor.vsix
 ```

@@ -116,7 +116,7 @@ Glass unless it says otherwise.
   it.
 
 A top-level entry needs a change in Cursor; see
-[#12](https://github.com/norrietaylor/cursor/issues/12).
+[#12](https://github.com/gominimal/min-cursor/issues/12).
 
 ### A box as a My Machines worker
 
