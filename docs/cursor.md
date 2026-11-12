@@ -122,19 +122,28 @@ A top-level entry needs a change in Cursor; see
 
 A Cursor worker running in a box puts a row in the menu, under
 **Remote Machine > My Machines**, and an agent started from that row runs its
-tool calls in the box. The agent loop still runs in Cursor's cloud. Tested by
-hand on 2026-11-06 with Cursor CLI `2026.11.05-86047df` on an aarch64 box and a
-personal Cursor account:
+tool calls in the box. The agent loop still runs in Cursor's cloud.
+
+Start one with **Run Cursor Worker in Box…** (a box's context menu in the
+Minimal view, or the command palette), or from a terminal:
 
 ```sh
-curl https://cursor.com/install -fsS | bash
-export PATH="$HOME/.local/bin:$PATH"
-agent login
-agent worker --name Minimal --worker-dir /workbench start
+min-cursor worker NAME          # no NAME: pick one of min-cursor's boxes
+min-cursor worker --logout NAME # remove the Cursor login from the box
 ```
 
-A box made from a folder has it at `/workbench`. If the repository is somewhere
-else in the box, use that path; the test used a clone under `/workbench`.
+The first run installs Cursor's CLI in the box (`curl https://cursor.com/install
+| bash`) and, when the box has no Cursor login yet, runs `agent login` there.
+Then it runs `agent worker --name "Minimal NAME" --worker-dir /workbench
+--idle-release-timeout 0 start` in the foreground, over the same ssh connection
+as `min-cursor ssh`. The worker runs while that terminal is open; closing it
+(or quitting Cursor) stops the worker. The extension's command asks first and
+works only on min-cursor's own boxes. It warns when `/workbench` has no git
+`origin` (see **Git** below).
+
+A box made from a folder has it at `/workbench`. The commands it wraps were
+tested by hand on 2026-11-06 with Cursor CLI `2026.11.05-86047df` on an aarch64
+box and a personal Cursor account, using a clone under `/workbench`.
 
 - **The row.** Its label is the worker folder's name, with `--name` in grey
   beside it, so `/workbench` shows as `workbench`.
@@ -149,7 +158,8 @@ else in the box, use that path; the test used a clone under `/workbench`.
   boxes on demand, and nothing restarts it after a box reboots. Cursor's docs
   say a worker stays connected until you stop it, but this CLI's help gives
   `--idle-release-timeout` a default of 3600 seconds. The test ran for 22
-  minutes, so it did not settle which applies; pass `0` to turn the timeout off.
+  minutes, so it did not settle which applies; `min-cursor worker` passes `0`
+  to turn the timeout off.
 - **Data.** Cursor's
   [docs](https://cursor.com/docs/cloud-agent/self-hosted) say the checkout stays
   on the machine, but the worker sends the content the agent needs, such as file
@@ -158,11 +168,13 @@ else in the box, use that path; the test used a clone under `/workbench`.
 - **One checkout.** Agents on a worker share its folder, so they can conflict
   with each other and with uncommitted work. Run one at a time, or use separate
   checkouts.
-- **`gc`.** A worker started by hand holds no ssh connection, so `gc` and
-  `status` see the box as idle and `gc` may offer to destroy it mid-run. Check
-  for a running worker before you answer.
+- **`gc`.** A worker from `min-cursor worker` holds an ssh connection, so
+  `gc` and `status` count the box as in use. A worker you start by hand inside
+  the box (`min session attach`) does not: `gc` may then offer to destroy the
+  box mid-run, so check before you answer.
 - **Credentials.** `agent login` keeps a Cursor credential in the box, so
-  anything running there can use it. `agent logout` removes it. Without GitHub
+  anything running there can use it. `min-cursor worker --logout NAME` (or
+  `agent logout` in the box) removes it; destroying the box does too. Without GitHub
   credentials in the box an agent can commit but not push, and Cursor's minted
   GitHub tokens are for pool workers only.
 
