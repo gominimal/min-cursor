@@ -1,0 +1,6 @@
+#!/bin/sh
+# Stub for env, linked only by the environment-quoting cases: the real env,
+# printed as the box's coreutils 9.12 env prints it, a value with a quote in
+# "..." and one with a space in '...'. QUOTING_STYLE=literal keeps a
+# coreutils 9.12 test host's own env from quoting first.
+QUOTING_STYLE=literal /usr/bin/env "$@" | sed -e "/^[^=]*=.*'/{s/=\(.*\)/=\"\1\"/;b" -e "}" -e "/^[^=]*=.* /s/=\(.*\)/='\1'/"

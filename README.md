@@ -60,8 +60,24 @@ cursor --install-extension min-cursor.vsix
 No `cursor` command? Install it from Cursor (Command Palette → **Shell
 Command: Install 'cursor' command in PATH**), or install the file from the
 Extensions view: `…` → **Install from VSIX…** → `min-cursor.vsix`.
+If the command is installed but your shell still cannot find it, link it:
+
+```sh
+mkdir -p ~/.local/bin
+ln -s /Applications/Cursor.app/Contents/Resources/app/bin/cursor ~/.local/bin/cursor
+```
+
+`~/.local/bin` must be on your `PATH` for the shell to find the link; if it is
+not, add it to your shell profile or link into a directory that already is.
+
+Installing may print a `DEP0169` deprecation warning. You can ignore it; the
+extension is installed.
 
 ### 3. Set up, once
+
+Launch Minimal from Cursor's IDE mode, not the Agents window.
+
+<!-- TODO: screenshot of Cursor in IDE mode with the Minimal view open -->
 
 1. In Cursor, open the **Minimal** view in the activity bar (the Minimal
    mark).
