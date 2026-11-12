@@ -106,5 +106,10 @@
     "@types/vscode": "1.90.0",
     "@vscode/vsce": "3.2.1",
     "typescript": "5.6.3"
+  },
+  "overrides": {
+    "glob": {
+      "minimatch": "^11.0.1"
+    }
   }
 }
