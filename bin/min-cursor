@@ -1283,7 +1283,7 @@ cmd_attach() {
 }
 
 # worker_script NAME: what runs in the box. Installs Cursor's CLI and asks for
-# a login only when they are missing; the login never passes through the host.
+# a login only when they are missing; the login is kept in the box, never on the host.
 worker_script() {
     cat <<SCRIPT
 export PATH="\$HOME/.local/bin:\$PATH"
