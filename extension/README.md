@@ -57,7 +57,7 @@ A window connected to a box shows its name in the status bar.
 
 ## More
 
-- [min-cursor](https://github.com/norrietaylor/cursor): this extension and
+- [min-cursor](https://github.com/gominimal/min-cursor): this extension and
   the `min-cursor` CLI it runs, with the full docs
 - [minimal](https://github.com/gominimal/minimal): the `min` CLI, daemon and microVM host
 - [Documentation](https://minimal.dev/docs)
