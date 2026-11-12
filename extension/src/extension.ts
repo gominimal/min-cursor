@@ -276,6 +276,9 @@ async function cleanUp(view: Boxes): Promise<void> {
 // `min-cursor worker NAME` in a terminal of its own, whose lifetime is the
 // worker's: closing it ends the ssh connection. A Pseudoterminal, so the CLI
 // runs on the host with this extension, also in a remote window.
+// Workers still running; deactivate (Reload Window, quit) ends them, so none
+// outlives its terminal.
+const workers = new Set<ChildProcess>();
 function workerTerminal(name: string): void {
   const write = new vscode.EventEmitter<string>();
   const close = new vscode.EventEmitter<void>();
@@ -285,12 +288,13 @@ function workerTerminal(name: string): void {
     onDidWrite: write.event,
     onDidClose: close.event,
     open: () => {
-      p = spawn('/bin/sh', [cli(), 'worker', name], { env: cliEnv(), stdio: ['pipe', 'pipe', 'pipe'] });
+      p = spawn('/bin/sh', [cli(), 'worker', '--own', name], { env: cliEnv(), stdio: ['pipe', 'pipe', 'pipe'] });
       p.stdin?.on('error', (e) => show(`${e}\n`)); // EPIPE: typing after the CLI exits
       p.stdout?.on('data', show);
       p.stderr?.on('data', show);
       p.on('error', (e) => show(`${e}\n`));
-      p.on('close', (code) => show(`\nWorker stopped (exit ${code ?? 'signal'}). Close this terminal.\n`));
+      workers.add(p);
+      p.on('close', (code) => { if (p) workers.delete(p); show(`\nWorker stopped (exit ${code ?? 'signal'}). Close this terminal.\n`); });
     },
     handleInput: (d) => { p?.stdin?.write(d); },
     close: () => { p?.kill(); },
@@ -401,4 +405,4 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
   }
 }
 
-export function deactivate(): void { /* subscriptions dispose */ }
+export function deactivate(): void { for (const w of workers) w.kill(); }

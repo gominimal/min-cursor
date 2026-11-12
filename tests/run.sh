@@ -1417,7 +1417,7 @@ agent_present() { mkdir -p "$BOX/home/.local/bin"; cp "$T/agent" "$BOX/home/.loc
 case_worker_runs_over_ssh_with_a_terminal() {
     run worker alpha
     assert_rc 0
-    assert_log_contains "min session exec alpha sh -c <script>"
+    assert_log_contains "min session exec $ID_A sh -c <script>"
     assert_log_contains "-o ForwardAgent=no"
     assert_log_contains " ${HP}alpha -tt "
     assert_file_contains "$STUB_LOG.last-arg" "exec agent worker --name 'Minimal alpha' --worker-dir /workbench --idle-release-timeout 0 start"
@@ -2685,6 +2685,21 @@ case_ids_ls_json_noise_is_failure() {
     assert_file "$HOME/$CONF" "$(conf_expected alpha)"
 }
 
+# worker --own (the extension's) is refused like attach --own: the login it
+# asks for is a credential
+case_ids_worker_own_refuses_foreign() {
+    mkdir -p "$HOME/.ssh" && : > "$HOME/$CONF"
+    reset_log
+    run worker --own alpha
+    assert_rc 1
+    assert_err_contains "alpha is not a box of $TOOL's"
+    assert_log_not_contains "session exec"
+    run worker --own --logout alpha
+    assert_rc 1
+    assert_log_not_contains "session exec"
+    grep -qF "'worker', '--own'," "$ROOT"/extension/src/extension.ts || fail "the extension's worker call lacks --own"
+}
+
 # every destroy and attach the extension sends passes --own
 case_extension_passes_own() {
     calls=$(grep -hE "run\(\['(destroy|attach)'" "$ROOT"/extension/src/*.ts)
@@ -2896,7 +2911,7 @@ gc_no_own_sessions_yet open_activates_and_launches_editor open_reuses_live_sessi
 open_needs_ssh_config
 open_rejects_non_directory_and_bad_name open_name_for_other_dir new_always_activates
 worker_runs_over_ssh_with_a_terminal worker_needs_a_known_session worker_script_installs_then_logs_in
-worker_script_reuses_cli_and_login worker_script_stops_when_install_or_login_fails worker_script_warns_without_origin worker_logout_runs_only_logout
+worker_script_reuses_cli_and_login worker_script_stops_when_install_or_login_fails worker_script_warns_without_origin worker_logout_runs_only_logout ids_worker_own_refuses_foreign
 attach_launches_existing attach_picker_rejects_zero attach_picker_uses_shown_list open_without_editor_fails_after_prepare open_editor_falls_back_to_app
 names_from_min
 destroy_asks_and_cleans_up destroy_ls_fails_keeps_keys destroy_ls_fails_once_keeps_stanza destroy_by_cwd destroy_by_cwd_only_own in_use_reads_ps gc_lists_oldest_first_and_asks

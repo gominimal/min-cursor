@@ -684,10 +684,12 @@ proxy_log() {
 
 # ssh NAME [-- ARGS...]: plain ssh into the session over the same transport.
 cmd_ssh() {
+    # --own (worker's, hidden): NAME must still be an own box
+    so=''; [ "${1:-}" = --own ] && { so=own; shift; }
     name=${1:-}; [ -n "$name" ] || die "ssh: NAME required"
     shift
     [ "${1:-}" = "--" ] && shift
-    need_box "$name"
+    need_box "$name" "$so"
     prepare "$name" "$BID"
     d=$(sess_dir "$name")
     tmp=$(mktemp) && ssh_opts "$name" > "$tmp"
@@ -1290,26 +1292,29 @@ exec agent worker --name $(shq "Minimal $1") --worker-dir $(shq "$WORKDIR") --id
 SCRIPT
 }
 
-# worker [--logout] [NAME]: a Cursor worker in the box, for Run on > My
-# Machines. In the foreground over ssh, not detached: the connection gives
+# worker [--logout] [--own] [NAME]: a Cursor worker in the box, for Run on >
+# My Machines. --own (the extension's, hidden) and a picked NAME: it must
+# still be an own box, since the login is a credential. In the foreground over ssh, not detached: the connection gives
 # `agent login` a terminal, counts as in use, and ends the worker when it
 # closes, so no credentialed process outlives what the user can see. -tt: a
 # client may run this with stdin on a pipe.
 cmd_worker() {
-    name='' logout=''
+    name='' logout='' wo=''
     while [ $# -gt 0 ]; do
         case $1 in
             --logout) logout=1; shift ;;
+            --own) wo=1; shift ;;
             -*) die "worker: unknown option $1" ;;
             *) name=$1; shift ;;
         esac
     done
-    [ -n "$name" ] || name=$(pick_session worker)
+    # a picked name came from the own list: it stays own
+    [ -n "$name" ] || { name=$(pick_session worker); wo=1; }
     if [ -n "$logout" ]; then
         # shellcheck disable=SC2016  # expanded in the box
-        cmd_ssh "$name" -- 'PATH="$HOME/.local/bin:$PATH" agent logout'
+        cmd_ssh ${wo:+--own} "$name" -- 'PATH="$HOME/.local/bin:$PATH" agent logout'
     else
-        cmd_ssh "$name" -- -tt "$(worker_script "$name")"
+        cmd_ssh ${wo:+--own} "$name" -- -tt "$(worker_script "$name")"
     fi
 }
 

@@ -76,7 +76,7 @@ which also work alone from a terminal.
   box named NAME, only when a command connects to that box (`box_id`;
   `own_filter`, which every list and the stanza and settings refreshes go
   through, never writes; nor does anything under `PICK_NOADOPT=1`, which every
-  command but `open`, `attach`, `ssh` and `_proxy` sets: `destroy` (it
+  command but `open`, `attach`, `ssh`, `worker` and `_proxy` sets: `destroy` (it
   destroys by the id `pick_id` prints, and writes none), `ssh-config`,
   `config`, `setup` (the extension runs it on startup), `gc`, `status`,
   `_sessions` and `doctor`; they count it own without writing); several boxes
@@ -90,7 +90,7 @@ which also work alone from a terminal.
   records, everything else refuses; ours listed under another name (`pick_id`
   6) is refused everywhere. A NAME chosen from the own list (the cwd, the
   picker) resolves with `own`, and so does one the extension sends: its
-  `destroy` and `attach` calls pass the hidden `--own`: NAME must still be own
+  `destroy`, `attach` and `worker` calls pass the hidden `--own`: NAME must still be own
   ("NAME is not a box of min-cursor's"), and `destroy --own` also refuses a
   key dir with no `id` ("NAME has no recorded box id yet"), and so does
   `destroy` with no NAME (the cwd lookup), so the view's Destroy and Clean up
@@ -101,7 +101,7 @@ which also work alone from a terminal.
   once)"), never asked about; `gc` destroys only a box whose recorded id `min
   ls` lists. A failed `min ls` keeps every stanza but a bad-id one. An
   explicit NAME that is not own and has no recorded id reaches the one box of
-  that name (`attach`, `ssh`, `open -n`, `destroy`), refused when several
+  that name (`attach`, `ssh`, `worker`, `open -n`, `destroy`), refused when several
   share it; `_proxy NAME` only an own box, or the one box of that name when
   there is no key dir at all (a stanza of a box of ours that is gone never
   reaches the box that took its name). Helpers reading one session
@@ -113,8 +113,8 @@ which also work alone from a terminal.
   boxes made by `min` alone are never listed. The same holds wherever a
   session is chosen for the user: `open`'s reuse of a live session for PATH,
   `destroy`'s cwd lookup, the `attach` picker and `_sessions` (completions).
-  Only an explicit NAME (`attach NAME`, `ssh NAME`, `destroy NAME`, `open -n
-  NAME`) may reach another tool's box.
+  Only an explicit NAME (`attach NAME`, `ssh NAME`, `worker NAME`, `destroy
+  NAME`, `open -n NAME`) may reach another tool's box.
 - In use = some host process runs `min session exec X ... sshd` (any ssh
   client's connection), for an own box by its name or its id (gc rows,
   `gc_still_idle`, `st_used`, `track_orphans`; `in_use_names` maps nothing); X
@@ -125,7 +125,9 @@ which also work alone from a terminal.
   explicitly: nothing starts it from `open`, `setup` or a hook. The login is
   typed in the box, never read or stored on the host. It stays in the
   foreground over `ssh -tt`, never detached, so it counts as in use and ends
-  with its terminal.
+  with its terminal; the extension kills its workers on `deactivate` too. A
+  picked NAME, and every call from the extension (`--own`), must be an own
+  box.
 - `config`/doctor never prune on a failed `min ls`. `--remove` restores the
   bytes it found (brace framing, CRLF, BOM); a user's own remotePlatform
   object that we rewrote is re-indented.
