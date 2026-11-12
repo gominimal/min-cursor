@@ -45,7 +45,8 @@ PUBKEY`, ID being the box's id (below). PREP, in the box:
   multi-line values (`env` only without awk: the box's `env`, coreutils
   9.12, shell-quotes values);
 - appends the `min:workbench` and `min:motd` rc lines (each unless there; an older `min:motd` line is replaced) and a `~/.bash_profile` that sources
-  `~/.bashrc`;
+  `~/.bashrc` (or, when one exists without a mention of `~/.bashrc`, a marked
+  `min:bashrc` line in it);
 - prints `user=`, `home=`, `sshd=`, `hostkey=`.
 
 The host validates every fact (they come from an untrusted box), then writes

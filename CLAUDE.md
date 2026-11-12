@@ -198,12 +198,14 @@ which also work alone from a terminal.
 - sshd scrubs the environment: PREP writes `~/.ssh/environment` (filtering
   `PROMPT_COMMAND`, the attach shell's banner trigger) and sshd runs with
   `PermitUserEnvironment=yes`. `MINIMAL_MOTD` is kept: the `min:motd` rc line
-  prints it in the first interactive shell that has `SSH_CONNECTION` and
-  whose stdout is a TTY, then unsets it (a non-TTY probe leaves it set). A
-  `min session attach` shell sources `~/.bashrc`/`~/.zshrc` too, without
-  `SSH_CONNECTION`; there minimald's own `PROMPT_COMMAND` prints the banner
-  with the real detach chord. Both writers replace a `min:motd` line that
-  differs.
+  is written to print it in the first interactive shell that has
+  `SSH_CONNECTION` and whose stdout is a TTY, then unsets it (a non-TTY
+  probe leaves it set). A `min session attach` shell sources
+  `~/.bashrc`/`~/.zshrc` too, without `SSH_CONNECTION`; there minimald's own
+  `PROMPT_COMMAND` prints the banner with the real detach chord. Both writers
+  replace a `min:motd` line that differs, and add a marked `min:bashrc` line
+  to an existing `~/.bash_profile` that does not mention `~/.bashrc` (sshd
+  starts a bash login shell, which reads only that file).
 - In the box, the host key and `authorized_keys` live in `~/.ssh/min-cursor/`.
 - Without a terminal, `min session destroy` refuses a box with unsaved
   changes ("refusing to destroy the session without confirmation; pass
